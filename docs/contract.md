@@ -347,14 +347,16 @@ of a team already there.
 
 Status `404` (unknown token or match), `409` (the request breaks a rule), `422`
 (the request is malformed), `429` (too many unknown tokens from one address, see
-*Tokens*). Body `{"error": code, "detail": text}`, with `code` among
+*Tokens*), `500` (an error of the server, logged in `logs/app.log` with its
+traceback). Body `{"error": code, "detail": text}`, with `code` among
 `set_not_started`, `set_closed`, `set_already_started`, `previous_set_open`,
 `match_over`, `not_open_yet`, `locked`, `timeout_limit`, `protected_event`,
-`unknown_player`, `invalid_event`, `not_found`, `rate_limited`, and for the
-editing pages `callup_closed`, `player_in_use`, `match_closed`. `unknown_player`
-and `invalid_event` (also an event id that does not exist, or a set that is not
-closed when reopening, or a value the editing pages refuse) come with `422`; the
-other rule codes, and the three for the editing pages, with `409`.
+`unknown_player`, `invalid_event`, `not_found`, `rate_limited`, `server_error`,
+and for the editing pages `callup_closed`, `player_in_use`, `match_closed`.
+`unknown_player` and `invalid_event` (also an event id that does not exist, or a
+set that is not closed when reopening, or a value the editing pages refuse) come
+with `422`; the other rule codes, and the three for the editing pages, with
+`409`.
 
 ## Strings
 
