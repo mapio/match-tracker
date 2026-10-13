@@ -1,0 +1,665 @@
+/* On top of Pico: a narrow column, the cards of the list, the score box. */
+
+:root {
+  --us: #1d6fd8;
+  --them: #c2410c;
+  --staff: #fca5a5;
+}
+
+/* A frame around every staff page, over the content and not in its layout, so
+   that the staff and the public pages cannot be mistaken for each other. */
+html[data-role="staff"]::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  border: 5px solid var(--staff);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+#app {
+  max-width: 420px;
+  padding: 12px;
+}
+
+/* the contact buttons of the landing and error pages */
+#app a[role="button"] {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+#app a.whatsapp {
+  --pico-background-color: #128c7e;
+  --pico-border-color: #128c7e;
+  --pico-color: #fff;
+}
+
+#app a[role="button"] small {
+  display: block;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+#app a.whatsapp {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+#app a.whatsapp svg {
+  flex: none;
+  width: 1.6em;
+  height: 1.6em;
+  fill: currentColor;
+}
+
+h1 {
+  font-size: 1.25rem;
+  margin: 0.5rem 0 0.25rem;
+}
+
+h2 {
+  font-size: 0.95rem;
+  color: var(--pico-muted-color);
+  margin: 1rem 0 0.25rem;
+}
+
+a.back {
+  font-size: 0.9rem;
+}
+
+.meta {
+  color: var(--pico-muted-color);
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.notice {
+  background: var(--pico-mark-background-color);
+  border-radius: var(--pico-border-radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.live {
+  background: #d11;
+  color: #fff;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* the list */
+
+.card {
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.card.featured {
+  border: 2px solid var(--us);
+}
+
+.card a.main {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.card .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card .meta {
+  margin: 0.125rem 0 0;
+}
+
+.card .result {
+  font-weight: 700;
+}
+
+.card a.where,
+.card a.callup {
+  display: inline-block;
+  margin-top: 0.4rem;
+  margin-right: 1rem;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+/* the call-up page: the roster as buttons to switch on and off */
+.picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.pick {
+  margin: 0;
+  padding: 0.6rem 0.2rem;
+  font-size: 0.95rem;
+  /* explicit colors: Pico sets the button's own background and text variables */
+  border: 2px solid #d1d5db;
+  background: #fff;
+  color: #4b5563;
+}
+
+.pick.on {
+  border-color: #16a34a;
+  background: #dcfce7;
+  color: #14532d;
+  font-weight: 700;
+}
+
+/* The pages that edit assume a tablet or a wider screen, and take its width; the
+   page of a phone is for reading the score and for scoring. */
+#app.wide {
+  max-width: 1000px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+
+.cards .card {
+  margin-bottom: 0;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 800px) {
+  .columns {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
+
+/* the players, below the settings, in two columns on a wide screen */
+.roster {
+  margin-top: 1rem;
+}
+
+.player-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 1.5rem;
+}
+
+@media (min-width: 800px) {
+  .player-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+#app.wide input,
+#app.wide select {
+  min-width: 0;
+}
+
+/* The forms of the editing pages: the label beside its field, compact, so that a
+   team fits a tablet without scrolling far. */
+#app.wide label {
+  display: grid;
+  grid-template-columns: minmax(6rem, 9rem) 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+}
+
+#app.wide input:not([type="checkbox"]),
+#app.wide select {
+  margin: 0;
+  height: auto;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.95rem;
+}
+
+#app.wide input[type="color"] {
+  width: 3.5rem;
+  height: 2rem;
+  padding: 0.1rem;
+}
+
+#app.wide input[type="number"] {
+  max-width: 6rem;
+}
+
+#app.wide label.check,
+#app.wide .colors label {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#app.wide label.check input {
+  margin: 0;
+}
+
+.colors {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.colors label {
+  margin: 0;
+}
+
+.columns h2 {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.player input {
+  flex: 1;
+}
+
+.links a {
+  margin-right: 0.75rem;
+}
+
+/* add and remove are icons, which need no translation; the words are their
+   tooltip and label */
+button.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin: 0;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+button.remove {
+  background: #fde2e2;
+  border-color: #fde2e2;
+  color: #7f1d1d;
+}
+
+button.add {
+  margin-bottom: 0.75rem;
+  margin-right: 0.5rem;
+}
+
+a.add {
+  margin-bottom: 1rem;
+}
+
+/* the season page: a form per match, its trash can in the corner */
+.cards .card {
+  position: relative;
+  padding-right: 3rem;
+}
+
+.cards .card button.remove {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+#app.wide .cards .card label {
+  grid-template-columns: minmax(5rem, 6.5rem) 1fr;
+}
+
+button.save {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+/* add and save sit side by side: one size */
+button.icon.add,
+button.icon.save {
+  width: 2.8rem;
+  height: 2.8rem;
+  font-size: 1.3rem;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--them);
+  margin-right: 6px;
+}
+
+/* the match */
+
+.box {
+  text-align: center;
+  padding: 1rem;
+  border: 2px solid var(--pico-muted-border-color);
+  border-radius: 14px;
+  margin-bottom: 0.75rem;
+}
+
+.box.live-box {
+  border-color: #d11;
+}
+
+.box.idle {
+  color: var(--pico-muted-color);
+}
+
+.box .names {
+  display: flex;
+  justify-content: space-around;
+  font-weight: 600;
+}
+
+.box .names .us {
+  color: var(--us);
+}
+
+.box .names .them {
+  color: var(--them);
+}
+
+.box .big {
+  font-size: 3.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.box .sub,
+.box .timeouts {
+  color: var(--pico-muted-color);
+  font-size: 0.9rem;
+}
+
+.box .timeouts {
+  letter-spacing: 2px;
+  white-space: pre;
+}
+
+table {
+  text-align: center;
+}
+
+/* Pico's cell padding grows with the text and would push the sets table past the
+   screen; a fixed one keeps it in. With very large text the table still may be
+   wider than the screen: it then scrolls on its own, not the page. */
+th,
+td {
+  padding-left: 4px;
+  padding-right: 4px;
+  text-align: center;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+td.win {
+  font-weight: 700;
+}
+
+ul.feed {
+  list-style: none;
+  padding: 0 0 0 0.75rem;
+  margin: 0;
+}
+
+ul.feed li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.2rem 0;
+}
+
+/* a time: when a point was added, when a set began and ended */
+.pill {
+  flex: none;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  background: var(--pico-muted-border-color);
+  color: var(--pico-muted-color);
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+td .pill {
+  display: inline-block;
+}
+
+/* a run is the same color several lines in a row */
+ul.feed li.us {
+  color: var(--us);
+}
+
+ul.feed li.them {
+  color: var(--them);
+}
+
+/* the staff screen: one view, no scrolling in play; with large text the content
+   outgrows the screen, and then the page scrolls and the bar stays in reach */
+
+#app.staff {
+  min-height: 100dvh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.staff button {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  touch-action: manipulation;
+  /* Pico redefines --pico-color and --pico-background-color on a button itself */
+  color: var(--pico-contrast);
+  background: var(--pico-muted-border-color);
+}
+
+.staff .notice {
+  margin: 0;
+}
+
+.staff .notice.error {
+  background: #fde2e2;
+  color: #7f1d1d;
+}
+
+.score {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0 4px;
+  color: var(--pico-muted-color);
+}
+
+.score b {
+  font-size: 2.5rem;
+  color: var(--pico-color);
+  white-space: nowrap;
+}
+
+.score.past {
+  background: #fff3c4;
+  color: #5b4a00;
+  border-radius: 12px;
+}
+
+.score.past b {
+  color: #111;
+}
+
+.teamrow {
+  flex: 2 1 0px; /* px, not %: the screen's height is not fixed, so % would mean content */
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.teamrow .team {
+  grid-column: span 3;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.teamrow .to {
+  color: #fff;
+  line-height: 1.5;
+}
+
+.teamrow .us {
+  background: var(--us);
+}
+
+.teamrow .them {
+  background: var(--them);
+}
+
+.dots {
+  display: block;
+  letter-spacing: 2px;
+}
+
+.players {
+  flex: 3 1 0px;
+  display: grid;
+  /* four to a row at normal size, fewer as the text grows, so a name stays whole */
+  grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 6px;
+}
+
+.players button {
+  font-size: 0.85rem;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staff button.start {
+  flex: 3 1 0px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  background: #16a34a;
+  color: #fff;
+}
+
+.bar {
+  display: flex;
+  gap: 6px;
+  min-height: 52px;
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  background: var(--pico-background-color);
+}
+
+.bar button {
+  flex: 1;
+  font-size: 0.8rem;
+}
+
+.bar button.wide {
+  flex: 1.6;
+}
+
+.menu {
+  position: fixed;
+  inset: 0;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  background: var(--pico-background-color);
+}
+
+.menu header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.menu header button {
+  width: auto;
+  padding: 8px 16px;
+}
+
+.menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menu li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.menu li > span {
+  flex: 1 1 100%;
+}
+
+.menu li select {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 6px 28px 6px 8px;
+  font-size: 0.9rem;
+}
+
+.menu li button.drop {
+  flex: none;
+  width: auto;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  background: #fde2e2;
+  color: #111;
+}
+
+/* the link to the privacy notice, at the foot of the public pages */
+.foot {
+  margin: 2rem 0 0.5rem;
+  font-size: 0.85rem;
+}
+.foot a {
+  color: var(--pico-muted-color);
+}

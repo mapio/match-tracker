@@ -1,0 +1,26 @@
+repos:
+  - repo: local
+    hooks:
+      - id: mdformat
+        name: mdformat
+        entry: uv run --frozen mdformat --wrap 80 --number
+        language: system
+        types: [markdown]
+        # memory notes use [[wiki links]], which mdformat escapes; a vendored
+        # licence is copied as its authors wrote it
+        exclude: ^(\.claude/memory/|src/match_tracker/static/vendor/)
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --frozen ruff check --fix
+        language: system
+        types_or: [python, jupyter]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --frozen ruff format
+        language: system
+        types_or: [python, jupyter, markdown]
+      - id: pretty-format-json
+        name: pretty-format-json
+        entry: uv run --frozen pretty-format-json --autofix --indent 2 --no-sort-keys --no-ensure-ascii
+        language: system
+        types: [json]

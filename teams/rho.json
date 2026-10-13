@@ -1,0 +1,78 @@
+{
+  "name": "Volley Rho",
+  "lang": "it",
+  "timezone": "Europe/Rome",
+  "colors": {
+    "us": "#1d6fd8",
+    "them": "#c2410c"
+  },
+  "contact": "https://wa.me/390000000000",
+  "show_scorers": true,
+  "rules": {
+    "best_of": 5,
+    "points": 25,
+    "last_set_points": 15,
+    "win_by": 2,
+    "timeouts_per_set": 2
+  },
+  "roster": {
+    "anna": "Anna",
+    "bea": "Bea",
+    "chiara": "Chiara",
+    "dora": "Dora",
+    "elsa": "Elsa",
+    "fede": "Fede",
+    "gina": "Gina",
+    "ilaria": "Ilaria",
+    "lia": "Lia",
+    "mara": "Mara",
+    "nora": "Nora",
+    "olga": "Olga"
+  },
+  "matches": [
+    {
+      "n": 1,
+      "date": "2026-10-10T15:00",
+      "opponent": "Pallavolo Aurora",
+      "location": {
+        "name": "Palestra Comunale",
+        "address": "Via Roma 1, Milano"
+      },
+      "players": [
+        "anna",
+        "bea",
+        "chiara",
+        "dora",
+        "elsa",
+        "fede",
+        "gina",
+        "ilaria",
+        "lia",
+        "mara"
+      ]
+    },
+    {
+      "n": 2,
+      "date": "2026-10-17T15:00",
+      "opponent": "Pallavolo Tau",
+      "location": {
+        "name": "Palestra Scuola Dante",
+        "address": "Via Dante 9, Lodi"
+      },
+      "players": [
+        "anna",
+        "bea",
+        "chiara",
+        "dora",
+        "elsa",
+        "fede",
+        "gina",
+        "nora",
+        "olga"
+      ],
+      "rules": {
+        "best_of": 3
+      }
+    }
+  ]
+}

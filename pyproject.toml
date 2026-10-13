@@ -1,0 +1,33 @@
+[project]
+name = "match-tracker"
+version = "0"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.143.0",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+match-tracker = "match_tracker.server:main"
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mdformat>=1.0.0",
+    "mdformat-frontmatter>=2.1.2",
+    "mdformat-gfm>=1.0.0",
+    "playwright>=1.63.0",
+    "pre-commit>=4.6.2",
+    "pre-commit-hooks>=6.0.0",
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
