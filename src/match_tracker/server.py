@@ -270,14 +270,21 @@ def create_app(
         # browsers ask for it on every page; it names no token, so it must not count
         return Response(status_code=204)
 
+    def page_beside_teams(name):
+        """A page the operator writes, kept beside the team files; no token, so
+        it is not counted against the limit either."""
+        page = Path(teams_dir) / name
+        if not page.is_file():
+            raise StarletteHTTPException(404)
+        return FileResponse(page, headers=REVALIDATE)
+
     @app.get("/privacy")
     async def privacy():
-        # the notice is written by whoever runs the service and lives beside the
-        # team files; no token, so not counted against the limit either
-        notice = Path(teams_dir) / "privacy.html"
-        if not notice.is_file():
-            raise StarletteHTTPException(404)
-        return FileResponse(notice, headers=REVALIDATE)
+        return page_beside_teams("privacy.html")
+
+    @app.get("/demo")
+    async def demo():
+        return page_beside_teams("demo.html")
 
     @app.get("/chat/{team_id}")
     async def chat(team_id: str):

@@ -213,6 +213,8 @@ takes its role from the API's answer.
 - `/privacy`: the privacy notice, the file `privacy.html` in the directory of
   the team files (`404` when it is not there); no token, and not counted by the
   limit on unknown tokens. The landing and the error pages link to it.
+- `/demo`: likewise an optional page of the operator's, the file `demo.html`
+  beside the team files (`404` when it is not there), for presenting the app.
 - `/static/...`: scripts, style and `i18n.json`.
 - `/favicon.ico`: `204`, no content; it names no token and is not counted by the
   limit on unknown tokens.

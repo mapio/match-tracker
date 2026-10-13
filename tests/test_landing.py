@@ -192,6 +192,16 @@ def test_without_a_notice_the_privacy_page_is_not_found(tmp_path):
     assert client.get("/privacy").status_code == 404
 
 
+def test_the_demo_page_is_the_file_beside_the_team_files_if_there_is_one(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.get("/demo").status_code == 404
+    (tmp_path / "teams" / "demo.html").write_text("<h1>The demo</h1>")
+    for _ in range(25):  # no token, so it does not count against the limit
+        page = client.get("/demo")
+        assert page.status_code == 200 and "The demo" in page.text
+    assert client.get("/api/zzzzzz00").status_code == 404  # the limit is untouched
+
+
 def test_the_landing_and_the_error_pages_link_to_the_notice(tmp_path, page):
     with serve(tmp_path) as live:
         for path in ("/?lang=it", "/zzzzzz?lang=it"):
