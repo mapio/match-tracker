@@ -16,6 +16,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import (
     FileResponse,
+    HTMLResponse,
     JSONResponse,
     RedirectResponse,
     StreamingResponse,
@@ -24,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import rules, views
+from . import oplog, rules, views
 from .limiter import Limiter
 from .rules import Draft, Event, RuleError
 from .store import Log, Store
@@ -184,6 +185,19 @@ def create_app(
             return error_page(404)
         return await http_exception_handler(request, error)
 
+    @app.exception_handler(Exception)
+    async def unexpected(request, error):
+        # the route's template names the page, never the path as typed (a token)
+        where = getattr(request.scope.get("route"), "path", "?")
+        log.error("unhandled error in %s", where, exc_info=error)
+        failure = ApiError(500, "server_error", "something went wrong")
+        if request.url.path.startswith("/api/"):
+            body = {"error": failure.code, "detail": failure.detail}
+            return JSONResponse(body, status_code=failure.status)
+        page = "<!doctype html><html lang=it><meta charset=utf-8><title>Errore</title>"
+        page += "<p>Si è verificato un errore. Riprova tra poco.</p></html>"
+        return HTMLResponse(page, status_code=failure.status)
+
     @app.exception_handler(RuleError)
     async def rule_error(request, error):
         status = 422 if error.code in UNPROCESSABLE else 409
@@ -197,12 +211,30 @@ def create_app(
         body = {"error": "invalid_event", "detail": f"{where}: {first['msg']}"}
         return JSONResponse(body, status_code=422)
 
+    refused = {"count": 0, "noted": None}  # the limit's refusals, noted once a minute
+
+    def note_refusal():
+        """Say in the log that the limit refused requests, without saying whose."""
+        refused["count"] += 1
+        at = now().timestamp()
+        if refused["noted"] is None or at - refused["noted"] >= 60:
+            log.warning(
+                "unknown-token limit: %d request(s) refused since the last note",
+                refused["count"],
+            )
+            refused["count"], refused["noted"] = 0, at
+
+    def unknown_token():
+        """A token that opens nothing counts against the limit like any other."""
+        if not limiter.allow(caller.get()):
+            note_refusal()
+            raise ApiError(429, "rate_limited", "too many unknown tokens")
+        raise ApiError(404, "not_found", "not found")
+
     def team_of(token):
         found = teams.find(token)
         if found is None:
-            if not limiter.allow(caller.get()):
-                raise ApiError(429, "rate_limited", "too many unknown tokens")
-            raise ApiError(404, "not_found", "not found")
+            unknown_token()
         return found
 
     def match_of(token, n):
@@ -237,12 +269,6 @@ def create_app(
         return RedirectResponse(
             found, status_code=302, headers={"Cache-Control": "no-store"}
         )
-
-    def unknown_token():
-        """A token that opens nothing counts against the limit like any other."""
-        if not limiter.allow(caller.get()):
-            raise ApiError(429, "rate_limited", "too many unknown tokens")
-        raise ApiError(404, "not_found", "not found")
 
     def coach_of(token):
         team = teams.find_coach(token)
@@ -289,6 +315,7 @@ def create_app(
             team = teams.create(body.id, with_info({}, body))
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
+        log.info("%s created by the admin", team.id)
         return views.team_info(team, teams.raw(team.id), languages)
 
     @app.get("/api/{token}/team")
@@ -303,6 +330,7 @@ def create_app(
             team = teams.save(team.id, with_info(teams.raw(team.id), body))
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
+        log.info("%s team form saved by the coach", team.id)
         return views.team_info(team, teams.raw(team.id), languages)
 
     @app.get("/api/{token}/season")
@@ -346,6 +374,7 @@ def create_app(
             team = teams.save(team.id, raw)
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
+        log.info("%s season saved by the coach", team.id)
         return views.season(team, store, now())
 
     @app.get("/api/contacts")
@@ -428,7 +457,7 @@ def create_app(
             log.info("%s/%d refused %s", team.id, match.n, error.code)
             raise
         store.put(team.id, match.n, new)
-        log.info("%s/%d %s", team.id, match.n, what)
+        log.info("%s/%d %s", team.id, match.n, what)  # only staff can score
         notify(team.id, match.n)
         return views.match_state(team, match, "staff", new, at)
 
@@ -518,6 +547,7 @@ def create_app(
             team = teams.save(team.id, raw)
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
+        log.info("%s/%d call-up saved by the coach", team.id, match.n)
         return views.callup(team, team.match(match.n), now())
 
     @app.post("/api/{token}/{n}/reset")
@@ -592,22 +622,34 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--teams", type=Path, default=Path("teams"))
     parser.add_argument("--data", type=Path, default=Path("data"))
+    parser.add_argument(
+        "--logs", type=Path, default=Path("logs"), help="where the operator log goes"
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     try:
+        oplog.setup(args.logs)  # from here nothing is written to the console
         app = create_app(args.teams, args.data, salt=read_salt(args.teams))
     except (OSError, ConfigError) as error:
-        sys.exit(f"error: {error}")
+        sys.exit(f"error: {error}")  # the one thing said on the console
+    teams = app.state.teams
     played = len(list(args.data.glob("*/*.json")))
-    log.info("%d matches with a log", played)
+    log.info(
+        "started: %d team(s) (%s), %d match(es) with a log",
+        len(teams.ids()),
+        ", ".join(teams.ids()),
+        played,
+    )
     # an open stream is a response that never completes: without a limit uvicorn
     # waits for it for ever when asked to stop
     uvicorn.run(
         app,
         host=args.host,
         port=args.port,
+        # its own logging setup would add a console handler, so the journal:
+        # oplog.setup has already sent every record to logs/app.log
+        log_config=None,
         log_level="info",
         # its access log writes each visitor's address and the whole URL, which
         # carries the secret links: the privacy notice says neither is written

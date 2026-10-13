@@ -35,6 +35,8 @@ def test_the_server_stops_on_sigterm_with_a_stream_open(tmp_path):
             str(tmp_path / "teams"),
             "--data",
             str(tmp_path / "data"),
+            "--logs",
+            str(tmp_path / "logs"),
             "--port",
             str(port),
         ],
