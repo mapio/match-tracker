@@ -6,6 +6,20 @@ who are not there follow live on their phones. No database, no accounts, no
 cookies, and only anonymous statistics. `docs/contract.md` is the interface
 (team files, event log, endpoints).
 
+## What it looks like
+
+The example team `rho` (invented names), in Italian, the default of its team
+file. Left, what a family sees on a phone; right, the bench's scoring screen.
+
+<p>
+<img src="docs/screenshots/family.png" alt="Family page of a live match: the score 14 to 11 in the fourth set, the finished sets with their times and the latest points with their scorers" width="300">
+<img src="docs/screenshots/staff.png" alt="Staff scoring screen: one large button for each team, a button for each player to say who scored, and the set controls" width="300">
+</p>
+
+The coach's call-up of a match, on a tablet:
+
+<img src="docs/screenshots/callup.png" alt="Call-up page: the players of the team as buttons, the called ones highlighted, and a save button" width="600">
+
 ## Running it
 
 ```bash
