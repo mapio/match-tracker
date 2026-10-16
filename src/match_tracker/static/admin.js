@@ -2,7 +2,15 @@
 // creates a team. Reached with the admin token, which is for the whole server;
 // a team is changed afterwards by its coach.
 
-import { ApiError, DEFAULT_LANGUAGE, h, loadStrings, markRole, show, t } from "./common.js";
+import {
+  ApiError,
+  DEFAULT_LANGUAGE,
+  h,
+  loadStrings,
+  markRole,
+  show,
+  t,
+} from "./common.js";
 import { teamForm } from "./teamform.js";
 
 const root = document.getElementById("app");
@@ -17,7 +25,12 @@ async function call(options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   const answer = await response.json().catch(() => ({}));
-  if (!response.ok) throw new ApiError(response.status, answer.error ?? "error", answer.detail ?? response.statusText);
+  if (!response.ok)
+    throw new ApiError(
+      response.status,
+      answer.error ?? "error",
+      answer.detail ?? response.statusText,
+    );
   return answer;
 }
 
@@ -36,12 +49,19 @@ function listView(data) {
           h(
             "p",
             { class: "links" },
-            ...["family", "staff", "coach"].flatMap((role) => [h("a", { href: team.links[role] }, t(`link_${role}`)), " "]),
+            ...["family", "staff", "coach"].flatMap((role) => [
+              h("a", { href: team.links[role] }, t(`link_${role}`)),
+              " ",
+            ]),
           ),
         ),
       ),
     ),
-    h("a", { role: "button", class: "add", href: `/${token}/new` }, t("admin_new")),
+    h(
+      "a",
+      { role: "button", class: "add", href: `/${token}/new` },
+      t("admin_new"),
+    ),
   );
 }
 
@@ -68,7 +88,13 @@ try {
         colors: { us: "#1d6fd8", them: "#c2410c" },
         contact: "",
         show_scorers: true,
-        rules: { best_of: 5, points: 25, last_set_points: 15, win_by: 2, timeouts_per_set: 2 },
+        rules: {
+          best_of: 5,
+          points: 25,
+          last_set_points: 15,
+          win_by: 2,
+          timeouts_per_set: 2,
+        },
         roster: {},
       },
       submit: async (body) => {

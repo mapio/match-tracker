@@ -1,13 +1,32 @@
 // The match view for families: the live set, the closed sets, the latest points.
 
-import { currentLanguage, dash, dots, formatDate, h, mapsUrl, matchNumber, poll, privacyLink, setTitle, show, t, token, watch } from "./common.js";
+import {
+  currentLanguage,
+  dash,
+  dots,
+  formatDate,
+  h,
+  mapsUrl,
+  matchNumber,
+  poll,
+  privacyLink,
+  setTitle,
+  show,
+  t,
+  token,
+  watch,
+} from "./common.js";
 
 const FEED_LENGTH = 10; // the server sends every point of the set; a phone shows the latest
 const POLL_SECONDS = 15;
 
 // hours and minutes on the viewer's clock, in the page's language
 const hm = (iso) =>
-  new Intl.DateTimeFormat(currentLanguage(), { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+  new Intl.DateTimeFormat(currentLanguage(), {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(iso));
 
 function scoreBox(state) {
   const { sets, sets_won: won, rules } = state;
@@ -23,7 +42,12 @@ function scoreBox(state) {
   return h(
     "div",
     { class: over ? "box" : "box live-box" },
-    h("div", { class: "names" }, h("span", { class: "us" }, us), h("span", { class: "them" }, them)),
+    h(
+      "div",
+      { class: "names" },
+      h("span", { class: "us" }, us),
+      h("span", { class: "them" }, them),
+    ),
     h("div", { class: "big" }, dash(score.us, score.them)),
     h(
       "div",
@@ -32,7 +56,12 @@ function scoreBox(state) {
       !over && ` · ${dash(won.us, won.them)}`,
       !over && current && ` · ${t("since", hm(current.started_at))}`,
     ),
-    !over && h("div", { class: "timeouts" }, `${dots(current?.timeouts.us ?? 0, limit)}   ${dots(current?.timeouts.them ?? 0, limit)}`),
+    !over &&
+      h(
+        "div",
+        { class: "timeouts" },
+        `${dots(current?.timeouts.us ?? 0, limit)}   ${dots(current?.timeouts.them ?? 0, limit)}`,
+      ),
   );
 }
 
@@ -45,13 +74,28 @@ function setsTable(state) {
     h(
       "table",
       {},
-      h("tr", {}, h("th"), h("th", {}, state.team.name), h("th", {}, state.match.opponent)),
+      h(
+        "tr",
+        {},
+        h("th"),
+        h("th", {}, state.team.name),
+        h("th", {}, state.match.opponent),
+      ),
       ...closed.map((s) =>
         h(
           "tr",
           {},
           // the rows are in order, so the set's number is not printed: its times are
-          h("td", {}, s.ended_at && h("span", { class: "pill" }, `${hm(s.started_at)}–${hm(s.ended_at)}`)),
+          h(
+            "td",
+            {},
+            s.ended_at &&
+              h(
+                "span",
+                { class: "pill" },
+                `${hm(s.started_at)}–${hm(s.ended_at)}`,
+              ),
+          ),
           h("td", { class: s.winner === "us" ? "win" : "" }, s.score.us),
           h("td", { class: s.winner === "them" ? "win" : "" }, s.score.them),
         ),
@@ -63,7 +107,12 @@ function setsTable(state) {
 // the viewer's clock in the page's language, from the event's UTC instant;
 // seconds, as points can come less than a minute apart
 const clock = (iso) =>
-  new Intl.DateTimeFormat(currentLanguage(), { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+  new Intl.DateTimeFormat(currentLanguage(), {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(iso));
 
 function feed(state) {
   if (!state.feed || !state.feed.length) return null;
@@ -84,7 +133,16 @@ function feed(state) {
     h(
       "ul",
       { class: "feed" },
-      ...state.feed.slice(0, FEED_LENGTH).map((p) => h("li", { class: p.team }, h("span", { class: "who" }, who(p)), h("span", { class: "pill" }, clock(p.t)))),
+      ...state.feed
+        .slice(0, FEED_LENGTH)
+        .map((p) =>
+          h(
+            "li",
+            { class: p.team },
+            h("span", { class: "who" }, who(p)),
+            h("span", { class: "pill" }, clock(p.t)),
+          ),
+        ),
     ),
   );
 }
@@ -100,12 +158,26 @@ export function start(initial, root) {
     show(
       body,
       h("a", { class: "back", href: `/${token}` }, `‹ ${state.team.name}`),
-      h("h1", {}, state.match.opponent, live && h("span", { class: "live" }, t("live"))),
+      h(
+        "h1",
+        {},
+        state.match.opponent,
+        live && h("span", { class: "live" }, t("live")),
+      ),
       h(
         "p",
         { class: "meta" },
         `${formatDate(state.match.date)} · `,
-        h("a", { href: mapsUrl(state.match.location), target: "_blank", rel: "noopener", title: t("where") }, `📍 ${state.match.location.name}`),
+        h(
+          "a",
+          {
+            href: mapsUrl(state.match.location),
+            target: "_blank",
+            rel: "noopener",
+            title: t("where"),
+          },
+          `📍 ${state.match.location.name}`,
+        ),
       ),
       scoreBox(state),
       setsTable(state),

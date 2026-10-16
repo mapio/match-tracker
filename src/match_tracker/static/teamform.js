@@ -6,21 +6,46 @@ import { describeInvalid, h, icon, show, t } from "./common.js";
 
 // a player's identifier from the name: lowercase letters and digits, not taken
 function identifier(name, taken) {
-  const stem = name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "player";
+  const stem =
+    name
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "player";
   let id = stem;
   for (let n = 2; taken.has(id); n += 1) id = `${stem}_${n}`;
   return id;
 }
 
 // submit(body) saves; it gives the saved team, or nothing when it leaves the page
-export function teamForm({ root, team, isNew, languages, backHref, backLabel, submit }) {
+export function teamForm({
+  root,
+  team,
+  isNew,
+  languages,
+  backHref,
+  backLabel,
+  submit,
+}) {
   // the roster as rows; a player already in the file keeps her identifier
   let rows = Object.entries(team.roster).map(([id, name]) => ({ id, name }));
   let notice = null;
   let busy = false;
 
   const input = (label, value, onchange, type = "text", extra = {}) =>
-    h("label", {}, label, h("input", { type, value: value ?? "", disabled: busy, oninput: (e) => onchange(e.target.value), ...extra }));
+    h(
+      "label",
+      {},
+      label,
+      h("input", {
+        type,
+        value: value ?? "",
+        disabled: busy,
+        oninput: (e) => onchange(e.target.value),
+        ...extra,
+      }),
+    );
 
   // three columns on a wide screen: the team, its rules, its players
   function render() {
@@ -34,60 +59,87 @@ export function teamForm({ root, team, isNew, languages, backHref, backLabel, su
         h(
           "select",
           { disabled: busy, onchange: (e) => (team.lang = e.target.value) },
-          ...languages.map((code) => h("option", { value: code, selected: code === team.lang }, code)),
+          ...languages.map((code) =>
+            h("option", { value: code, selected: code === team.lang }, code),
+          ),
         ),
       ),
       input(t("admin_timezone"), team.timezone, (v) => (team.timezone = v)),
       h(
         "div",
         { class: "colors" },
-        input(t("admin_color_us"), team.colors.us, (v) => (team.colors.us = v), "color"),
-        input(t("admin_color_them"), team.colors.them, (v) => (team.colors.them = v), "color"),
+        input(
+          t("admin_color_us"),
+          team.colors.us,
+          (v) => (team.colors.us = v),
+          "color",
+        ),
+        input(
+          t("admin_color_them"),
+          team.colors.them,
+          (v) => (team.colors.them = v),
+          "color",
+        ),
       ),
       input(t("admin_contact"), team.contact, (v) => (team.contact = v)),
       h(
         "label",
         { class: "check" },
-        h("input", { type: "checkbox", checked: team.show_scorers, disabled: busy, onchange: (e) => (team.show_scorers = e.target.checked) }),
+        h("input", {
+          type: "checkbox",
+          checked: team.show_scorers,
+          disabled: busy,
+          onchange: (e) => (team.show_scorers = e.target.checked),
+        }),
         t("admin_show_scorers"),
       ),
     ];
     const rules = [
       h("h2", {}, t("admin_rules")),
       ...Object.keys(team.rules).map((key) =>
-        input(t(`rule_${key}`), team.rules[key], (v) => (team.rules[key] = v === "" ? "" : Number(v)), "number", { min: 1 }),
+        input(
+          t(`rule_${key}`),
+          team.rules[key],
+          (v) => (team.rules[key] = v === "" ? "" : Number(v)),
+          "number",
+          { min: 1 },
+        ),
       ),
     ];
     const players = [
       h("h2", {}, t("admin_roster")),
-      h("div", { class: "player-list" }, ...rows.map((row, index) =>
-        h(
-          "div",
-          { class: "player" },
-          h("input", {
-            type: "text",
-            value: row.name,
-            placeholder: t("admin_player_name"),
-            "aria-label": t("admin_player_name"),
-            disabled: busy,
-            oninput: (e) => (row.name = e.target.value),
-          }),
+      h(
+        "div",
+        { class: "player-list" },
+        ...rows.map((row, index) =>
           h(
-            "button",
-            {
-              class: "icon remove",
-              title: t("remove"),
-              "aria-label": t("remove"),
+            "div",
+            { class: "player" },
+            h("input", {
+              type: "text",
+              value: row.name,
+              placeholder: t("admin_player_name"),
+              "aria-label": t("admin_player_name"),
               disabled: busy,
-              onclick: () => {
-                rows.splice(index, 1);
-                render();
+              oninput: (e) => (row.name = e.target.value),
+            }),
+            h(
+              "button",
+              {
+                class: "icon remove",
+                title: t("remove"),
+                "aria-label": t("remove"),
+                disabled: busy,
+                onclick: () => {
+                  rows.splice(index, 1);
+                  render();
+                },
               },
-            },
-            icon("trash3"),
+              icon("trash3"),
+            ),
           ),
         ),
-      )),
+      ),
       h(
         "button",
         {
@@ -107,10 +159,26 @@ export function teamForm({ root, team, isNew, languages, backHref, backLabel, su
       root,
       h("p", {}, h("a", { href: backHref }, `‹ ${backLabel}`)),
       h("h1", {}, isNew ? t("admin_new") : team.name),
-      h("div", { class: "columns" }, h("section", {}, ...general), h("section", {}, ...rules)),
+      h(
+        "div",
+        { class: "columns" },
+        h("section", {}, ...general),
+        h("section", {}, ...rules),
+      ),
       h("section", { class: "roster" }, ...players),
-      notice && h("p", { class: notice.ok ? "notice" : "notice error" }, notice.text),
-      h("button", { class: "icon save", title: t("save"), "aria-label": t("save"), disabled: busy, onclick: save }, icon("floppy")),
+      notice &&
+        h("p", { class: notice.ok ? "notice" : "notice error" }, notice.text),
+      h(
+        "button",
+        {
+          class: "icon save",
+          title: t("save"),
+          "aria-label": t("save"),
+          disabled: busy,
+          onclick: save,
+        },
+        icon("floppy"),
+      ),
     );
   }
 

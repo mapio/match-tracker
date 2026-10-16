@@ -2,7 +2,21 @@
 // The page keeps only the set being viewed and the last answer; every tap is a
 // request and the screen is drawn again from what the server answers.
 
-import { ApiError, api, currentLanguage, dash, describe, dots, h, matchNumber, poll, privacyLink, setTitle, show, t } from "./common.js";
+import {
+  ApiError,
+  api,
+  currentLanguage,
+  dash,
+  describe,
+  dots,
+  h,
+  matchNumber,
+  poll,
+  privacyLink,
+  setTitle,
+  show,
+  t,
+} from "./common.js";
 
 const BASE = `/${matchNumber}`;
 const POLL_SECONDS = 10;
@@ -18,7 +32,10 @@ export function start(initial, root) {
   const us = () => state.team.name;
   const them = () => state.match.opponent;
   const viewed = () => state.sets.find((s) => s.set === view) ?? null;
-  const lastCounted = () => [...state.events].reverse().find((e) => e.set === view && COUNTED.includes(e.type));
+  const lastCounted = () =>
+    [...state.events]
+      .reverse()
+      .find((e) => e.set === view && COUNTED.includes(e.type));
   root.classList.add("staff");
 
   // One request at a time: a second tap while one is in flight is ignored.
@@ -42,9 +59,11 @@ export function start(initial, root) {
     schedule();
   }
 
-  const add = (body) => send(`${BASE}/events`, { method: "POST", body: { set: view, ...body } });
+  const add = (body) =>
+    send(`${BASE}/events`, { method: "POST", body: { set: view, ...body } });
   const point = (team, player) => add({ type: "point", team, player });
-  const fix = (id, body) => send(`${BASE}/events/${id}`, { method: "PATCH", body });
+  const fix = (id, body) =>
+    send(`${BASE}/events/${id}`, { method: "PATCH", body });
   const drop = (id) => send(`${BASE}/events/${id}`, { method: "DELETE" });
   const undo = () => drop(lastCounted().id);
   const reopen = () => send(`${BASE}/sets/${view}/reopen`, { method: "POST" });
@@ -58,19 +77,24 @@ export function start(initial, root) {
 
   // What others record shows up by itself, and a lost connection is said, since
   // a tap would fail; a tap in flight is not disturbed.
-  poll(BASE, POLL_SECONDS, (next) => {
-    if (busy) return;
-    state = next;
-    view = Math.min(view, state.current);
-    render();
-    schedule();
-  }, (up) => {
-    const lost = t("offline");
-    if (up && notice === lost) notice = null;
-    else if (!up && !busy) notice = lost;
-    else return;
-    render();
-  });
+  poll(
+    BASE,
+    POLL_SECONDS,
+    (next) => {
+      if (busy) return;
+      state = next;
+      view = Math.min(view, state.current);
+      render();
+      schedule();
+    },
+    (up) => {
+      const lost = t("offline");
+      if (up && notice === lost) notice = null;
+      else if (!up && !busy) notice = lost;
+      else return;
+      render();
+    },
+  );
 
   // The screen unlocks, or locks, by itself when the window opens or closes.
   function schedule() {
@@ -80,7 +104,8 @@ export function start(initial, root) {
       .map(Date.parse)
       .filter((ms) => ms > now)
       .sort((a, b) => a - b)[0];
-    if (next) timer = setTimeout(refresh, Math.min(next - now + 500, 2 ** 31 - 1));
+    if (next)
+      timer = setTimeout(refresh, Math.min(next - now + 500, 2 ** 31 - 1));
   }
 
   async function keepAwake() {
@@ -96,14 +121,21 @@ export function start(initial, root) {
     if (state.match.editable) return null;
     const opens = Date.parse(state.match.opens_at);
     if (Date.now() < opens) {
-      const time = new Intl.DateTimeFormat(currentLanguage(), { hour: "2-digit", minute: "2-digit" }).format(opens);
+      const time = new Intl.DateTimeFormat(currentLanguage(), {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(opens);
       return h("p", { class: "notice" }, t("opens_at", time));
     }
     return h("p", { class: "notice" }, t("read_only"));
   }
 
   function eventRow(event) {
-    const clock = new Intl.DateTimeFormat(currentLanguage(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const clock = new Intl.DateTimeFormat(currentLanguage(), {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
     const time = clock.format(new Date(event.t));
     const locked = busy || !state.match.editable;
     const protectedEvent = !COUNTED.includes(event.type);
@@ -118,20 +150,39 @@ export function start(initial, root) {
     if (event.type === "point" && event.team === "us") {
       control = h(
         "select",
-        { disabled: locked, onchange: (e) => fix(event.id, { player: e.target.value || null }) },
+        {
+          disabled: locked,
+          onchange: (e) => fix(event.id, { player: e.target.value || null }),
+        },
         h("option", { value: "" }, `— ${t("no_scorer")}`),
-        ...Object.entries(state.players).map(([id, name]) => h("option", { value: id, selected: id === event.player }, name)),
+        ...Object.entries(state.players).map(([id, name]) =>
+          h("option", { value: id, selected: id === event.player }, name),
+        ),
       );
     } else if (event.type === "timeout") {
       const counts = state.sets.find((s) => s.set === event.set).timeouts;
-      const full = (side) => side !== event.team && counts[side] >= state.rules.timeouts_per_set;
+      const full = (side) =>
+        side !== event.team && counts[side] >= state.rules.timeouts_per_set;
       control = h(
         "select",
-        { disabled: locked, onchange: (e) => fix(event.id, { team: e.target.value }) },
+        {
+          disabled: locked,
+          onchange: (e) => fix(event.id, { team: e.target.value }),
+        },
         ...[
           ["us", us()],
           ["them", them()],
-        ].map(([side, name]) => h("option", { value: side, selected: side === event.team, disabled: full(side) }, name)),
+        ].map(([side, name]) =>
+          h(
+            "option",
+            {
+              value: side,
+              selected: side === event.team,
+              disabled: full(side),
+            },
+            name,
+          ),
+        ),
       );
     }
     return h(
@@ -139,7 +190,12 @@ export function start(initial, root) {
       {},
       h("span", {}, `${time} · ${label}`),
       control,
-      !protectedEvent && h("button", { class: "drop", disabled: locked, onclick: () => drop(event.id) }, t("delete")),
+      !protectedEvent &&
+        h(
+          "button",
+          { class: "drop", disabled: locked, onclick: () => drop(event.id) },
+          t("delete"),
+        ),
     );
   }
 
@@ -163,9 +219,23 @@ export function start(initial, root) {
         "header",
         {},
         h("b", {}, `${t("set")} ${view}`),
-        h("button", { onclick: () => { menu = false; render(); } }, "✕"),
+        h(
+          "button",
+          {
+            onclick: () => {
+              menu = false;
+              render();
+            },
+          },
+          "✕",
+        ),
       ),
-      ...[banner(), state.team.demo && resetButton(), h("ul", {}, ...events.map(eventRow)), privacyLink()].filter(Boolean),
+      ...[
+        banner(),
+        state.team.demo && resetButton(),
+        h("ul", {}, ...events.map(eventRow)),
+        privacyLink(),
+      ].filter(Boolean),
     );
   }
 
@@ -186,10 +256,18 @@ export function start(initial, root) {
       h(
         "div",
         { class: "teamrow" },
-        h("button", { class: `team ${side}`, disabled: idle, onclick: () => point(side) }, name),
         h(
           "button",
-          { class: `to ${side}`, disabled: idle || used[side] >= limit, onclick: () => add({ type: "timeout", team: side }) },
+          { class: `team ${side}`, disabled: idle, onclick: () => point(side) },
+          name,
+        ),
+        h(
+          "button",
+          {
+            class: `to ${side}`,
+            disabled: idle || used[side] >= limit,
+            onclick: () => add({ type: "timeout", team: side }),
+          },
           t("timeout"),
           h("span", { class: "dots" }, dots(used[side], limit)),
         ),
@@ -199,23 +277,94 @@ export function start(initial, root) {
       ? h(
           "div",
           { class: "players" },
-          ...Object.entries(state.players).map(([id, name]) => h("button", { disabled: idle, onclick: () => point("us", id) }, name)),
+          ...Object.entries(state.players).map(([id, name]) =>
+            h(
+              "button",
+              { disabled: idle, onclick: () => point("us", id) },
+              name,
+            ),
+          ),
         )
-      : h("button", { class: "start", disabled: !editable || busy, onclick: () => add({ type: "set_start" }) }, t("start_set", view));
+      : h(
+          "button",
+          {
+            class: "start",
+            disabled: !editable || busy,
+            onclick: () => add({ type: "set_start" }),
+          },
+          t("start_set", view),
+        );
 
     const bar = h(
       "div",
       { class: "bar" },
-      h("button", { disabled: view <= 1, onclick: () => { view -= 1; render(); } }, `‹ ${t("set")}`),
-      h("button", { disabled: view >= state.current, onclick: () => { view += 1; render(); } }, `${t("set")} ›`),
-      h("button", { disabled: idle || !lastCounted(), onclick: undo, title: t("undo"), "aria-label": t("undo") }, "↶"),
+      h(
+        "button",
+        {
+          disabled: view <= 1,
+          onclick: () => {
+            view -= 1;
+            render();
+          },
+        },
+        `‹ ${t("set")}`,
+      ),
+      h(
+        "button",
+        {
+          disabled: view >= state.current,
+          onclick: () => {
+            view += 1;
+            render();
+          },
+        },
+        `${t("set")} ›`,
+      ),
+      h(
+        "button",
+        {
+          disabled: idle || !lastCounted(),
+          onclick: undo,
+          title: t("undo"),
+          "aria-label": t("undo"),
+        },
+        "↶",
+      ),
       closed
-        ? h("button", { class: "wide", disabled: !editable || busy, onclick: reopen }, t("reopen"))
-        : h("button", { class: "wide", disabled: !editable || busy || !set, onclick: () => add({ type: "set_end" }) }, t("close_set")),
+        ? h(
+            "button",
+            { class: "wide", disabled: !editable || busy, onclick: reopen },
+            t("reopen"),
+          )
+        : h(
+            "button",
+            {
+              class: "wide",
+              disabled: !editable || busy || !set,
+              onclick: () => add({ type: "set_end" }),
+            },
+            t("close_set"),
+          ),
       // the match can end from the next set's screen too, which has no set yet:
       // the event names the last set played
-      h("button", { disabled: !editable || busy || !lastSet || over, onclick: () => add({ type: "match_end", set: lastSet.set }) }, t("end_match")),
-      h("button", { onclick: () => { menu = true; render(); } }, "⋯"),
+      h(
+        "button",
+        {
+          disabled: !editable || busy || !lastSet || over,
+          onclick: () => add({ type: "match_end", set: lastSet.set }),
+        },
+        t("end_match"),
+      ),
+      h(
+        "button",
+        {
+          onclick: () => {
+            menu = true;
+            render();
+          },
+        },
+        "⋯",
+      ),
     );
 
     show(

@@ -1,17 +1,36 @@
 // The match list, the same for staff and family tokens.
 
-import { api, applyColors, dash, formatDate, h, loadStrings, mapsUrl, markRole, privacyLink, setTitle, show, t, token } from "./common.js";
+import {
+  api,
+  applyColors,
+  dash,
+  formatDate,
+  h,
+  loadStrings,
+  mapsUrl,
+  markRole,
+  privacyLink,
+  setTitle,
+  show,
+  t,
+  token,
+} from "./common.js";
 
 const root = document.getElementById("app");
 let ready = false;
 
 function result(match) {
-  return match.status === "upcoming" ? "—" : dash(match.sets_won.us, match.sets_won.them);
+  return match.status === "upcoming"
+    ? "—"
+    : dash(match.sets_won.us, match.sets_won.them);
 }
 
 function card(match, featured = false) {
   const live = match.status === "live";
-  const score = live && match.current_score ? dash(match.current_score.us, match.current_score.them) : null;
+  const score =
+    live && match.current_score
+      ? dash(match.current_score.us, match.current_score.them)
+      : null;
   return h(
     "div",
     { class: featured ? "card featured" : "card" },
@@ -21,7 +40,13 @@ function card(match, featured = false) {
       h(
         "div",
         { class: "row" },
-        h("b", {}, h("span", { class: "dot" }), match.opponent, live && h("span", { class: "live" }, t("live"))),
+        h(
+          "b",
+          {},
+          h("span", { class: "dot" }),
+          match.opponent,
+          live && h("span", { class: "live" }, t("live")),
+        ),
         h("span", { class: "result" }, result(match)),
       ),
       h(
@@ -31,7 +56,17 @@ function card(match, featured = false) {
         score && ` · ${t("set")} ${match.current_set}: ${score}`,
       ),
     ),
-    h("a", { class: "where", href: mapsUrl(match.location), target: "_blank", rel: "noopener", title: t("where") }, `📍 ${match.location.name}`),
+    h(
+      "a",
+      {
+        class: "where",
+        href: mapsUrl(match.location),
+        target: "_blank",
+        rel: "noopener",
+        title: t("where"),
+      },
+      `📍 ${match.location.name}`,
+    ),
   );
 }
 
@@ -61,7 +96,12 @@ async function refresh() {
       setTitle(list.team.name);
       ready = true;
     }
-    show(root, h("h1", {}, list.team.name), layout(list.matches), privacyLink());
+    show(
+      root,
+      h("h1", {}, list.team.name),
+      layout(list.matches),
+      privacyLink(),
+    );
   } catch (error) {
     if (!ready) show(root, h("p", { class: "notice" }, error.message));
   }

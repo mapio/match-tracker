@@ -2,7 +2,18 @@
 // with the team's coach token: from here the call-up of each match, the season
 // and the team's rules, colors and roster are set.
 
-import { ApiError, applyColors, formatDate, h, icon, loadStrings, markRole, setTitle, show, t } from "./common.js";
+import {
+  ApiError,
+  applyColors,
+  formatDate,
+  h,
+  icon,
+  loadStrings,
+  markRole,
+  setTitle,
+  show,
+  t,
+} from "./common.js";
 import { teamForm } from "./teamform.js";
 
 const root = document.getElementById("app");
@@ -17,7 +28,12 @@ async function call(suffix = "", options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   const answer = await response.json().catch(() => ({}));
-  if (!response.ok) throw new ApiError(response.status, answer.error ?? "error", answer.detail ?? response.statusText);
+  if (!response.ok)
+    throw new ApiError(
+      response.status,
+      answer.error ?? "error",
+      answer.detail ?? response.statusText,
+    );
   return answer;
 }
 
@@ -41,9 +57,17 @@ function dashboard(data) {
           "div",
           { class: "card" },
           h("b", {}, match.opponent),
-          h("div", { class: "meta" }, `${formatDate(match.date)} · ${t("callup_count", match.called)}`),
+          h(
+            "div",
+            { class: "meta" },
+            `${formatDate(match.date)} · ${t("callup_count", match.called)}`,
+          ),
           match.callup_open
-            ? h("a", { class: "callup", href: `/${token}/${match.n}/players` }, [icon("people"), ` ${t("callup")}`])
+            ? h(
+                "a",
+                { class: "callup", href: `/${token}/${match.n}/players` },
+                [icon("people"), ` ${t("callup")}`],
+              )
             : h("div", { class: "meta" }, t("callup_closed_note")),
         ),
       ),

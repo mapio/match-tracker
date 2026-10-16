@@ -21,7 +21,11 @@ export async function api(path, { method = "GET", body } = {}) {
   });
   const answer = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new ApiError(response.status, answer.error ?? "error", answer.detail ?? response.statusText);
+    throw new ApiError(
+      response.status,
+      answer.error ?? "error",
+      answer.detail ?? response.statusText,
+    );
   }
   return answer;
 }
@@ -96,7 +100,9 @@ export function describe(error) {
 // The same for the pages that edit, where "invalid" comes with the validator's own
 // words saying which value is wrong.
 export const describeInvalid = (error) =>
-  error instanceof ApiError && error.code === "invalid_event" ? error.detail : describe(error);
+  error instanceof ApiError && error.code === "invalid_event"
+    ? error.detail
+    : describe(error);
 
 // Builds an element; children are text or nodes, never HTML.
 export function h(tag, props = {}, ...children) {
@@ -107,14 +113,18 @@ export function h(tag, props = {}, ...children) {
     else if (value === true) node.setAttribute(name, "");
     else if (value !== false && value != null) node.setAttribute(name, value);
   }
-  node.append(...children.flat().filter((child) => child != null && child !== false));
+  node.append(
+    ...children.flat().filter((child) => child != null && child !== false),
+  );
   return node;
 }
 
 // Replaces what a page holds. Children that are null, undefined or false are
 // left out: replaceChildren would write them as the text "null" or "false".
 export function show(parent, ...children) {
-  parent.replaceChildren(...children.flat().filter((child) => child != null && child !== false));
+  parent.replaceChildren(
+    ...children.flat().filter((child) => child != null && child !== false),
+  );
 }
 
 // A safety net beside the stream, and the only update the staff screen gets from
@@ -124,17 +134,20 @@ export function show(parent, ...children) {
 export function poll(path, seconds, onState, onStatus = () => {}) {
   const asked = Number(new URLSearchParams(location.search).get("poll"));
   let last = null;
-  return setInterval(async () => {
-    try {
-      const state = await api(path);
-      onStatus(true);
-      const text = JSON.stringify(state);
-      if (text !== last) onState(state);
-      last = text;
-    } catch {
-      onStatus(false);
-    }
-  }, (asked || seconds) * 1000);
+  return setInterval(
+    async () => {
+      try {
+        const state = await api(path);
+        onStatus(true);
+        const text = JSON.stringify(state);
+        if (text !== last) onState(state);
+        last = text;
+      } catch {
+        onStatus(false);
+      }
+    },
+    (asked || seconds) * 1000,
+  );
 }
 
 // onState gets each state sent; onStatus(true|false) says if the stream is up.
@@ -151,7 +164,8 @@ export function watch(path, onState, onStatus) {
 
 // An icon of the icon font (Bootstrap Icons, loaded by the pages that edit): the
 // name is the font's, "trash3" for bi-trash3. Decorative: the button names itself.
-export const icon = (name) => h("i", { class: `bi bi-${name}`, "aria-hidden": "true" });
+export const icon = (name) =>
+  h("i", { class: `bi bi-${name}`, "aria-hidden": "true" });
 
 // The language of a page that belongs to no team (the landing, the error pages, the
 // admin's): Italian, whatever the browser says; ?lang= still overrides it.
@@ -159,4 +173,5 @@ export const DEFAULT_LANGUAGE = "it";
 
 // The link to the privacy notice, at the foot of the public pages (the pages that
 // edit, which their editors know, leave it to the landing page).
-export const privacyLink = () => h("p", { class: "foot" }, h("a", { href: "/privacy" }, t("privacy")));
+export const privacyLink = () =>
+  h("p", { class: "foot" }, h("a", { href: "/privacy" }, t("privacy")));

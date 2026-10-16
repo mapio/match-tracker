@@ -1,7 +1,15 @@
 // The landing page and the page for a link that does not work: both say whom to
 // ask, and never show a token.
 
-import { DEFAULT_LANGUAGE, h, loadStrings, show, t, token, matchNumber } from "./common.js";
+import {
+  DEFAULT_LANGUAGE,
+  h,
+  loadStrings,
+  show,
+  t,
+  token,
+  matchNumber,
+} from "./common.js";
 
 const root = document.getElementById("app");
 
@@ -30,7 +38,12 @@ function contactLink(team) {
   const { url, whatsapp } = team.contact;
   return h(
     "a",
-    { role: "button", class: whatsapp ? "whatsapp" : "", href: url, rel: "noopener" },
+    {
+      role: "button",
+      class: whatsapp ? "whatsapp" : "",
+      href: url,
+      rel: "noopener",
+    },
     whatsapp && bubble(),
     h("span", {}, team.name, whatsapp && h("small", {}, t("write_whatsapp"))),
   );
@@ -38,7 +51,8 @@ function contactLink(team) {
 
 async function main() {
   // the status of this very page, where the browser tells it
-  const limited = performance.getEntriesByType("navigation")[0]?.responseStatus === 429;
+  const limited =
+    performance.getEntriesByType("navigation")[0]?.responseStatus === 429;
   if (limited) {
     await loadStrings(DEFAULT_LANGUAGE);
     document.title = t("limited_title");
@@ -50,13 +64,21 @@ async function main() {
   const known = token && matchNumber ? await json(`/api/${token}`) : null;
   const team = known?.team;
   await loadStrings(team?.lang ?? DEFAULT_LANGUAGE);
-  const teams = team?.contact ? [team] : team ? [] : await json("/api/contacts");
+  const teams = team?.contact
+    ? [team]
+    : team
+      ? []
+      : await json("/api/contacts");
   const title = landing ? t("landing_title") : t("error_title");
   document.title = title;
   show(
     root,
     h("h1", {}, title),
-    h("p", {}, landing ? t("landing_text") : team ? t("error_match") : t("error_text")),
+    h(
+      "p",
+      {},
+      landing ? t("landing_text") : team ? t("error_match") : t("error_text"),
+    ),
     teams.length ? teams.map(contactLink) : h("p", {}, t("no_contact")),
     team && h("p", {}, h("a", { href: `/${token}` }, t("all_matches"))),
     h("p", { class: "meta" }, h("a", { href: "/privacy" }, t("privacy"))),

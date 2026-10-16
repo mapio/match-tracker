@@ -2,7 +2,18 @@
 // and remove. For the coach or DA. A match is changed before it is played: once
 // its window has opened it is read-only, and only one with no record is removed.
 
-import { ApiError, applyColors, describeInvalid, h, icon, loadStrings, markRole, setTitle, show, t } from "./common.js";
+import {
+  ApiError,
+  applyColors,
+  describeInvalid,
+  h,
+  icon,
+  loadStrings,
+  markRole,
+  setTitle,
+  show,
+  t,
+} from "./common.js";
 
 const root = document.getElementById("app");
 root.classList.add("wide"); // these pages assume a tablet or a wider screen
@@ -16,7 +27,12 @@ async function call(options) {
     body: options?.body ? JSON.stringify(options.body) : undefined,
   });
   const answer = await response.json().catch(() => ({}));
-  if (!response.ok) throw new ApiError(response.status, answer.error ?? "error", answer.detail ?? response.statusText);
+  if (!response.ok)
+    throw new ApiError(
+      response.status,
+      answer.error ?? "error",
+      answer.detail ?? response.statusText,
+    );
   return answer;
 }
 
@@ -32,7 +48,12 @@ function start(data) {
       "label",
       {},
       label,
-      h("input", { type, value: value ?? "", disabled: locked || busy, oninput: (event) => onchange(event.target.value) }),
+      h("input", {
+        type,
+        value: value ?? "",
+        disabled: locked || busy,
+        oninput: (event) => onchange(event.target.value),
+      }),
     );
   }
 
@@ -42,10 +63,31 @@ function start(data) {
       "div",
       { class: "card" },
       locked && h("p", { class: "meta" }, t("match_closed_note")),
-      field(t("season_date"), match.date, (v) => (match.date = v), locked, "datetime-local"),
-      field(t("season_opponent"), match.opponent, (v) => (match.opponent = v), locked),
-      field(t("season_place"), match.location.name, (v) => (match.location.name = v), locked),
-      field(t("season_address"), match.location.address, (v) => (match.location.address = v), locked),
+      field(
+        t("season_date"),
+        match.date,
+        (v) => (match.date = v),
+        locked,
+        "datetime-local",
+      ),
+      field(
+        t("season_opponent"),
+        match.opponent,
+        (v) => (match.opponent = v),
+        locked,
+      ),
+      field(
+        t("season_place"),
+        match.location.name,
+        (v) => (match.location.name = v),
+        locked,
+      ),
+      field(
+        t("season_address"),
+        match.location.address,
+        (v) => (match.location.address = v),
+        locked,
+      ),
       !match.has_log &&
         h(
           "button",
@@ -70,7 +112,14 @@ function start(data) {
     notice = null;
     render();
     try {
-      const body = { matches: matches.map(({ n, date, opponent, location }) => ({ n, date, opponent, location })) };
+      const body = {
+        matches: matches.map(({ n, date, opponent, location }) => ({
+          n,
+          date,
+          opponent,
+          location,
+        })),
+      };
       const saved = await call({ method: "PUT", body });
       matches = saved.matches.map(copy);
       notice = { text: t("saved"), ok: true };
@@ -95,15 +144,30 @@ function start(data) {
           "aria-label": t("season_add"),
           disabled: busy,
           onclick: () => {
-            matches.push({ date: "", opponent: "", location: { name: "", address: "" } });
+            matches.push({
+              date: "",
+              opponent: "",
+              location: { name: "", address: "" },
+            });
             notice = null;
             render();
           },
         },
         icon("calendar-plus"),
       ),
-      notice && h("p", { class: notice.ok ? "notice" : "notice error" }, notice.text),
-      h("button", { class: "icon save", title: t("save"), "aria-label": t("save"), disabled: busy, onclick: save }, icon("floppy")),
+      notice &&
+        h("p", { class: notice.ok ? "notice" : "notice error" }, notice.text),
+      h(
+        "button",
+        {
+          class: "icon save",
+          title: t("save"),
+          "aria-label": t("save"),
+          disabled: busy,
+          onclick: save,
+        },
+        icon("floppy"),
+      ),
     );
   }
 
