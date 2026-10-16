@@ -24,3 +24,11 @@ repos:
         entry: uv run --frozen pretty-format-json --autofix --indent 2 --no-sort-keys --no-ensure-ascii
         language: system
         types: [json]
+      - id: prettier
+        name: prettier
+        entry: prettier --write
+        language: node
+        additional_dependencies: [prettier@3.9.10]
+        types_or: [html, css, javascript]
+        # vendored files are copied as their authors wrote them
+        exclude: ^src/match_tracker/static/vendor/
