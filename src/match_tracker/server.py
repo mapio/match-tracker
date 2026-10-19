@@ -5,7 +5,7 @@ import asyncio
 import json
 import logging
 import sys
-from contextlib import asynccontextmanager, suppress
+from contextlib import suppress
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
@@ -28,7 +28,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import oplog, rules, views
 from .limiter import Limiter
 from .rules import Draft, Event, RuleError
-from .stats import DAY_ZONE, Stats, report
 from .store import Log, Store
 from .teams import ConfigError, Teams, read_salt
 
@@ -140,37 +139,25 @@ def create_app(
     now=lambda: datetime.now(UTC),
     keepalive=20,
     salt="",
-    logs_dir=None,
 ):
-    """The app; a test can fix `now` and shorten the stream's `keepalive` seconds.
-    Without a `logs_dir` no statistics are kept."""
+    """The app; a test can fix `now` and shorten the stream's `keepalive` seconds."""
     languages = set(json.loads((STATIC / "i18n.json").read_text(encoding="utf-8")))
     teams = Teams(teams_dir, data_dir, languages, salt)
     store = Store(data_dir)
-    stats = Stats(logs_dir, now)
-    # the address and User-Agent of the request in hand: only the limiter and the
-    # anonymous visitor count see them, and keep them in memory
+    # the address of the request in hand: only the limiter sees it, and keeps it
+    # in memory
     caller = ContextVar("caller", default="?")
-    agent = ContextVar("agent", default="")
 
     async def remember_caller(request: Request):
         caller.set(request.client.host if request.client else "?")
-        agent.set(request.headers.get("user-agent", ""))
-
-    @asynccontextmanager
-    async def lifespan(app):
-        yield
-        stats.flush()
 
     app = FastAPI(
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
         dependencies=[Depends(remember_caller)],
-        lifespan=lifespan,
     )
     app.state.teams = teams
-    app.state.stats = stats
     limiter = Limiter(
         UNKNOWN_TOKEN_LIMIT, UNKNOWN_TOKEN_WINDOW, lambda: now().timestamp()
     )
@@ -342,7 +329,6 @@ def create_app(
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
         log.info("%s created by the admin", team.id)
-        stats.edit("admin", team.id, None, "create")
         return views.team_info(team, teams.raw(team.id), languages)
 
     @app.get("/api/{token}/team")
@@ -358,7 +344,6 @@ def create_app(
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
         log.info("%s team form saved by the coach", team.id)
-        stats.edit("coach", team.id, None, "team")
         return views.team_info(team, teams.raw(team.id), languages)
 
     @app.get("/api/{token}/season")
@@ -403,7 +388,6 @@ def create_app(
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
         log.info("%s season saved by the coach", team.id)
-        stats.edit("coach", team.id, None, "season")
         return views.season(team, store, now())
 
     @app.get("/api/contacts")
@@ -487,7 +471,6 @@ def create_app(
             raise
         store.put(team.id, match.n, new)
         log.info("%s/%d %s", team.id, match.n, what)  # only staff can score
-        stats.edit("staff", team.id, match.n, kind)
         notify(team.id, match.n)
         return views.match_state(team, match, "staff", new, at)
 
@@ -578,7 +561,6 @@ def create_app(
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
         log.info("%s/%d call-up saved by the coach", team.id, match.n)
-        stats.edit("coach", team.id, match.n, "callup")
         return views.callup(team, team.match(match.n), now())
 
     @app.post("/api/{token}/{n}/reset")
@@ -597,37 +579,31 @@ def create_app(
     async def page_landing():
         return FileResponse(STATIC / "error.html", headers=REVALIDATE)
 
-    def page(name, role, kind, team=None, match=None):
-        """A page of the app, counted: only the pages of the three roles come here,
-        so a scan with unknown tokens, the stream and the API are not."""
-        stats.visit(caller.get(), agent.get(), role, team, match, kind)
+    def page(name):
         return FileResponse(STATIC / name, headers=REVALIDATE)
 
     @app.get("/{token}")
     async def page_list(token: str):
         if teams.is_admin(token):
-            return page("admin.html", "admin", "teams")
-        coach = teams.find_coach(token)
-        if coach is not None:
-            return page("coach.html", "coach", "dashboard", coach.id)
-        team, role = team_of(token)
-        return page("list.html", role, "list", team.id)
+            return page("admin.html")
+        if teams.find_coach(token) is not None:
+            return page("coach.html")
+        team_of(token)  # a token of no team is refused here
+        return page("list.html")
 
     @app.get("/{token}/{n}/players")
     async def page_callup(token: str, n: str):
-        team, match = coach_match(token, n)
-        return page("callup.html", "coach", "callup", team.id, match.n)
+        coach_match(token, n)
+        return page("callup.html")
 
     @app.get("/{token}/{n}")
     async def page_match(token: str, n: str):
         if teams.is_admin(token) and n == "new":
-            return page("admin.html", "admin", "new")
-        coach = teams.find_coach(token)
-        if coach is not None and n in ("season", "team"):
-            name = "season.html" if n == "season" else "coach.html"
-            return page(name, "coach", n, coach.id)
-        team, role, match = match_of(token, n)
-        return page("match.html", role, "match", team.id, match.n)
+            return page("admin.html")
+        if teams.find_coach(token) is not None and n in ("season", "team"):
+            return page("season.html" if n == "season" else "coach.html")
+        match_of(token, n)
+        return page("match.html")
 
     return app
 
@@ -652,26 +628,10 @@ def links(argv):
     print(teams.markdown(args.base), end="")
 
 
-def show_stats(argv):
-    """`match-tracker stats`: print the anonymous statistics of the last days."""
-    parser = argparse.ArgumentParser(
-        prog="match-tracker stats", description=show_stats.__doc__
-    )
-    parser.add_argument("--logs", type=Path, default=Path("logs"))
-    parser.add_argument("--days", type=int, default=30)
-    args = parser.parse_args(argv)
-    if not args.logs.is_dir():
-        sys.exit(f"error: no {args.logs} directory")
-    today = datetime.now(DAY_ZONE).date()
-    print(report(args.logs, today, args.days), end="")
-
-
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["urls"]:  # a subcommand; without one the server starts
         return links(argv[1:])
-    if argv[:1] == ["stats"]:
-        return show_stats(argv[1:])
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--teams", type=Path, default=Path("teams"))
     parser.add_argument("--data", type=Path, default=Path("data"))
@@ -683,9 +643,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         oplog.setup(args.logs)  # from here nothing is written to the console
-        app = create_app(
-            args.teams, args.data, salt=read_salt(args.teams), logs_dir=args.logs
-        )
+        app = create_app(args.teams, args.data, salt=read_salt(args.teams))
     except (OSError, ConfigError) as error:
         sys.exit(f"error: {error}")  # the one thing said on the console
     teams = app.state.teams

@@ -3,8 +3,8 @@
 A very small web app to follow volleyball matches point by point. A staff member
 on the bench records points, timeouts and, if wanted, who scored; the families
 who are not there follow live on their phones. No database, no accounts, no
-cookies, and only anonymous statistics. `docs/contract.md` is the interface
-(team files, event log, endpoints).
+cookies, no statistics. `docs/contract.md` is the interface (team files, event
+log, endpoints).
 
 ## What it looks like
 
@@ -27,7 +27,6 @@ uv sync
 uv run match-tracker              # 127.0.0.1:8000, teams/ and data/
 uv run match-tracker --teams teams --data data --logs logs --host 127.0.0.1 --port 8000
 uv run match-tracker urls --base https://example.org   # every team's links, as Markdown
-uv run match-tracker stats --days 30                   # the anonymous statistics
 ```
 
 It is a uv application: `uv build` makes a wheel that carries its own pages, and
@@ -45,12 +44,8 @@ is in `teams/salt`, the team files themselves through the pages that edit them
 
 The server says nothing on the console but a failure to start. What the operator
 needs goes to `logs/app.log` (rotated daily at midnight, 30 files kept; the
-directory is set with `--logs` and is made readable by its owner only), and the
-anonymous page and edit counts to `logs/stats-YYYY-MM.jsonl` (kept 24 months),
-which `match-tracker stats` summarises. Neither holds a visitor's address or a
-link. A visitor is counted once a day by a hash of address and User-Agent under
-a random secret made each day and kept in memory only, so nothing is stored on
-the visitor's device and nobody is recognised from one day to the next.
+directory is set with `--logs` and is made readable by its owner only). It holds
+no visitor's address and no link, and nothing is stored on a visitor's device.
 
 The server stops within a few seconds of SIGTERM, even with families watching.
 
@@ -59,10 +54,9 @@ The server stops within a few seconds of SIGTERM, even with families watching.
 `src/match_tracker/` is the package: `teams.py` (team files, tokens, reload, and
 the one safe way to save or create a team file), `rules.py` (the rules of a
 match, with no I/O), `store.py` (the event logs on disk), `views.py` (the JSON
-of the contract), `limiter.py`, `oplog.py` (the operator's log file), `stats.py`
-(the anonymous statistics), `server.py` (the app and `main`), and `static/` (the
-pages, their scripts and `i18n.json`). `tests/` has a file per module and two
-that drive a browser.
+of the contract), `limiter.py`, `oplog.py` (the operator's log file),
+`server.py` (the app and `main`), and `static/` (the pages, their scripts and
+`i18n.json`). `tests/` has a file per module and two that drive a browser.
 
 The pages are styled with Pico.css, and those that edit use the Bootstrap Icons
 font for their buttons. Both are copied under `src/match_tracker/static/vendor/`
