@@ -151,6 +151,32 @@ def test_the_family_state_has_no_events_and_a_feed_of_the_current_set(tmp_path):
     ]
 
 
+def test_the_family_timeline_has_the_points_and_timeouts_of_every_set(tmp_path):
+    log_of(tmp_path, 1, *PLAYED)
+    client, tokens = make_client(tmp_path)
+    body = client.get(f"/api/{tokens['family']}/1").json()
+    assert body["timeline"] == [
+        {
+            "set": 1,
+            "t": "2026-10-10T13:00:10.000Z",
+            "type": "point",
+            "team": "us",
+            "player": "anna",
+        },
+        {"set": 1, "t": "2026-10-10T13:00:20.000Z", "type": "point", "team": "them"},
+        {"set": 1, "t": "2026-10-10T13:00:30.000Z", "type": "point", "team": "us"},
+        {"set": 1, "t": "2026-10-10T13:00:40.000Z", "type": "timeout", "team": "them"},
+    ]
+    assert "timeline" not in client.get(f"/api/{tokens['staff']}/1").json()
+
+
+def test_the_timeline_names_no_scorer_unless_the_team_shows_them(tmp_path):
+    log_of(tmp_path, 1, *PLAYED)
+    client, tokens = make_client(tmp_path, show_scorers=False)
+    timeline = client.get(f"/api/{tokens['family']}/1").json()["timeline"]
+    assert len(timeline) == 4 and all("player" not in item for item in timeline)
+
+
 def test_scorers_stay_hidden_from_families_unless_the_team_shows_them(tmp_path):
     log_of(tmp_path, 1, *PLAYED)
     client, tokens = make_client(tmp_path, show_scorers=False)

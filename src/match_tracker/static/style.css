@@ -699,3 +699,190 @@ ul.feed li.them {
 .foot a {
   color: var(--pico-muted-color);
 }
+
+/* the chart of the points (chart.js) */
+#app.chart {
+  max-width: 1280px;
+}
+
+.chart .sub,
+.chart .foot {
+  color: var(--pico-muted-color);
+  font-size: 0.9rem;
+}
+
+.chart .key {
+  display: flex;
+  gap: 14px;
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+}
+
+.chart .key span::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 3px;
+  margin-right: 5px;
+  vertical-align: middle;
+  background: currentColor;
+}
+
+.chart .key .us,
+.chart h2 .us {
+  color: var(--us);
+}
+
+.chart .key .them,
+.chart h2 .them {
+  color: var(--them);
+}
+
+.chart select {
+  width: auto;
+  margin: 0 0 10px;
+}
+
+.chart section {
+  margin: 0 0 18px;
+}
+
+.chart h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 2px;
+  font-size: 1rem;
+}
+
+.chart h2 b {
+  font-size: 1.3rem;
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chart .grid {
+  stroke: var(--pico-muted-border-color);
+}
+
+.chart .tick {
+  fill: var(--pico-muted-color);
+  font-size: 11px;
+}
+
+.chart .line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.chart .line.us,
+.chart .end.us {
+  stroke: var(--us);
+}
+
+.chart .line.them,
+.chart .end.them {
+  stroke: var(--them);
+}
+
+.chart .end.us {
+  fill: var(--us);
+}
+
+.chart .end.them {
+  fill: var(--them);
+}
+
+.chart .dot {
+  fill: var(--pico-background-color);
+  stroke-width: 1.6;
+}
+
+.chart .dot.us {
+  stroke: var(--us);
+}
+
+.chart .dot.them {
+  stroke: var(--them);
+}
+
+.chart .hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.chart .timeout {
+  stroke-dasharray: 3 4;
+  opacity: 0.5;
+}
+
+.chart .timeout.us {
+  stroke: var(--us);
+}
+
+.chart .timeout.them {
+  stroke: var(--them);
+}
+
+.chart .final {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chart .final.us {
+  fill: var(--us);
+}
+
+.chart .final.them {
+  fill: var(--them);
+}
+
+.tip {
+  position: fixed;
+  z-index: 10;
+  padding: 4px 9px;
+  border: 2px solid var(--pico-color);
+  border-radius: 8px;
+  background: var(--pico-background-color);
+  color: var(--pico-color);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* the link to the chart, under the score and in the menu of the staff */
+.chart-link {
+  display: inline-block;
+  margin: 4px 0 8px;
+  font-weight: 600;
+}
+
+/* turned on its side the page is short: the title, the key and the menu go on
+   one row so that a set has the height */
+@media (max-height: 520px) {
+  .chart .frame {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 18px;
+  }
+
+  .chart .frame h1 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+
+  .chart .frame .sub {
+    display: none;
+  }
+
+  .chart .frame .key,
+  .chart .frame select {
+    margin: 0;
+  }
+}

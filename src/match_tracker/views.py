@@ -82,6 +82,25 @@ def _feed(events, current):
     return feed[::-1]
 
 
+def _timeline(events, show_scorers):
+    """The points and timeouts of every set, for the chart of the families, who
+    get the scorer of a point of ours only when the team lets them see names."""
+    timeline = []
+    for event in events:
+        if event.type not in ("point", "timeout"):
+            continue
+        item = {
+            "set": event.set,
+            "t": format_time(event.t),
+            "type": event.type,
+            "team": event.team,
+        }
+        if show_scorers and event.player is not None:
+            item["player"] = event.player
+        timeline.append(item)
+    return timeline
+
+
 def match_state(team, match, role, log, now):
     """The state of one match: the same for both roles but for what is noted."""
     window = window_of(team, match)
@@ -107,9 +126,11 @@ def match_state(team, match, role, log, now):
     if role == "staff":
         out["players"] = {p: team.roster[p] for p in match.players}
         out["events"] = [event_to_json(e) for e in log.events]
-    elif team.show_scorers:
-        out["players"] = {p: team.roster[p] for p in match.players}
-        out["feed"] = _feed(log.events, state.current)
+    else:
+        out["timeline"] = _timeline(log.events, team.show_scorers)
+        if team.show_scorers:
+            out["players"] = {p: team.roster[p] for p in match.players}
+            out["feed"] = _feed(log.events, state.current)
     return out
 
 

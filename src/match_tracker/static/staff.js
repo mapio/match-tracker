@@ -16,6 +16,7 @@ import {
   setTitle,
   show,
   t,
+  token,
 } from "./common.js";
 
 const BASE = `/${matchNumber}`;
@@ -265,6 +266,11 @@ export function start(initial, root) {
       ),
       ...[
         banner(),
+        h(
+          "a",
+          { class: "chart-link", href: `/${token}/${matchNumber}/chart` },
+          `${t("chart")} ›`,
+        ),
         h("div", { class: "extras" }, ...extras),
         state.team.demo && resetButton(),
         h("ul", {}, ...events.map(eventRow)),

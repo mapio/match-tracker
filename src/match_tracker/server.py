@@ -601,6 +601,11 @@ def create_app(
         coach_match(token, n)
         return page("callup.html")
 
+    @app.get("/{token}/{n}/chart")
+    async def page_chart(token: str, n: str):
+        match_of(token, n)
+        return page("chart.html")
+
     @app.get("/{token}/{n}")
     async def page_match(token: str, n: str):
         if teams.is_admin(token) and n == "new":

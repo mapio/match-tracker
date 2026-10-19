@@ -188,6 +188,9 @@ What the server returns and streams. Staff and family differ only where noted.
 - `current`: number of the set to show: the first not closed, 1 if none has
   started.
 - Staff only: `events`, the whole log.
+- Family only: `timeline`, the points and timeouts of every set in order,
+  `{set, t, type, team}`, and `player` on a point of ours when `show_scorers`;
+  the chart takes the same from `events` for the staff.
 - Family only, when `show_scorers`: `feed`, the points of the current set, most
   recent first, `{t, team, player|null, score: {us, them}}` with the score after
   the point.
@@ -215,6 +218,10 @@ takes its role from the API's answer.
   the list of teams with their links.
 - `/<tok>/<m>`: with a family or staff token, the family match view or the staff
   screen.
+- `/<tok>/<m>/chart`: with a family or staff token, the chart of the points of
+  the match, a line per team in each set; a read, so reachable also once the
+  match is over. It is linked from the family match view and from the menu of
+  the staff screen.
 - With a coach token: `/<tok>/<m>/players` is the call-up of a match,
   `/<tok>/season` the season and `/<tok>/team` the team's settings. These pages
   assume a tablet or a wider screen.

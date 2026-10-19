@@ -31,6 +31,7 @@ def paths(live):
         f"/{staff}",
         f"/{staff}/1",
         f"/{staff}/1/players",
+        f"/{family}/1/chart",
     ]
 
 

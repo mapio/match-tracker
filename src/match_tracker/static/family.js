@@ -180,6 +180,12 @@ export function start(initial, root) {
         ),
       ),
       scoreBox(state),
+      state.match.status !== "upcoming" &&
+        h(
+          "a",
+          { class: "chart-link", href: `/${token}/${matchNumber}/chart` },
+          `${t("chart")} ›`,
+        ),
       setsTable(state),
       feed(state),
       privacyLink(),
