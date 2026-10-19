@@ -22,11 +22,32 @@ const BASE = `/${matchNumber}`;
 const POLL_SECONDS = 10;
 const COUNTED = ["point", "timeout"];
 
+// The label of each scorer's button: the shortest prefix of at least three
+// letters no other name starts with, so that the text can be large. Names that
+// are a prefix of another ("Irene", "Irene A.") are written whole.
+function shortNames(players) {
+  const names = Object.entries(players).map(([id, name]) => {
+    const plain = name.replace(/\s+/g, "");
+    return { id, name, plain, key: plain.toLowerCase() };
+  });
+  return Object.fromEntries(
+    names.map(({ id, name, plain, key }) => {
+      for (let size = 3; size < key.length; size++) {
+        const prefix = key.slice(0, size);
+        if (names.filter((n) => n.key.startsWith(prefix)).length === 1)
+          return [id, plain.slice(0, size)];
+      }
+      return [id, name];
+    }),
+  );
+}
+
 export function start(initial, root) {
   let state = initial;
   let view = initial.current;
   let busy = false;
   let menu = false;
+  let extras = []; // the buttons of the menu that close a set or the match
   let notice = null;
   let timer = null;
   const us = () => state.team.name;
@@ -36,6 +57,14 @@ export function start(initial, root) {
     [...state.events]
       .reverse()
       .find((e) => e.set === view && COUNTED.includes(e.type));
+  // the point whose scorer a tap on a name sets: the last point or timeout of
+  // the match, if it is a point of ours (also after it closed its set)
+  const pending = () => {
+    const last = [...state.events]
+      .reverse()
+      .find((e) => COUNTED.includes(e.type));
+    return last?.type === "point" && last.team === "us" ? last : null;
+  };
   root.classList.add("staff");
 
   // One request at a time: a second tap while one is in flight is ignored.
@@ -61,12 +90,16 @@ export function start(initial, root) {
 
   const add = (body) =>
     send(`${BASE}/events`, { method: "POST", body: { set: view, ...body } });
-  const point = (team, player) => add({ type: "point", team, player });
+  const point = (team) => add({ type: "point", team });
   const fix = (id, body) =>
     send(`${BASE}/events/${id}`, { method: "PATCH", body });
   const drop = (id) => send(`${BASE}/events/${id}`, { method: "DELETE" });
   const undo = () => drop(lastCounted().id);
   const reopen = () => send(`${BASE}/sets/${view}/reopen`, { method: "POST" });
+  const extra = (action) => {
+    menu = false;
+    action();
+  };
 
   async function refresh() {
     state = await api(BASE).catch(() => state);
@@ -232,6 +265,7 @@ export function start(initial, root) {
       ),
       ...[
         banner(),
+        h("div", { class: "extras" }, ...extras),
         state.team.demo && resetButton(),
         h("ul", {}, ...events.map(eventRow)),
         privacyLink(),
@@ -273,27 +307,55 @@ export function start(initial, root) {
         ),
       );
 
-    const middle = set
-      ? h(
-          "div",
-          { class: "players" },
-          ...Object.entries(state.players).map(([id, name]) =>
-            h(
-              "button",
-              { disabled: idle, onclick: () => point("us", id) },
-              name,
-            ),
+    // who scored the last point: the buttons act on it, and a tap on the name
+    // already set takes it off
+    const last = view === state.current ? pending() : null;
+    const labels = shortNames(state.players);
+    const scorers = [
+      h(
+        "div",
+        { class: "ask" },
+        last
+          ? t(
+              "who_scored",
+              state.sets.find((s) => s.set === last.set).score.us,
+              us(),
+            )
+          : "",
+      ),
+      h(
+        "div",
+        { class: "players" },
+        ...Object.keys(state.players).map((id) =>
+          h(
+            "button",
+            {
+              class: last?.player === id ? "on" : "",
+              disabled: !editable || busy || !last,
+              onclick: () =>
+                fix(last.id, { player: last.player === id ? null : id }),
+            },
+            labels[id],
           ),
-        )
-      : h(
-          "button",
-          {
-            class: "start",
-            disabled: !editable || busy,
-            onclick: () => add({ type: "set_start" }),
-          },
-          t("start_set", view),
-        );
+        ),
+      ),
+    ];
+    const startSet = h(
+      "button",
+      {
+        class: "start",
+        disabled: !editable || busy,
+        onclick: () => add({ type: "set_start" }),
+      },
+      t("start_set", view),
+    );
+    // the point that closed a set is offered for a scorer until it has one,
+    // before the next set starts; then only the start button is left
+    const middle = set
+      ? scorers
+      : last && !last.player
+        ? [...scorers, startSet]
+        : [startSet];
 
     const bar = h(
       "div",
@@ -307,7 +369,7 @@ export function start(initial, root) {
             render();
           },
         },
-        `‹ ${t("set")}`,
+        "‹",
       ),
       h(
         "button",
@@ -318,11 +380,12 @@ export function start(initial, root) {
             render();
           },
         },
-        `${t("set")} ›`,
+        "›",
       ),
       h(
         "button",
         {
+          class: "undo",
           disabled: idle || !lastCounted(),
           onclick: undo,
           title: t("undo"),
@@ -330,34 +393,10 @@ export function start(initial, root) {
         },
         "↶",
       ),
-      closed
-        ? h(
-            "button",
-            { class: "wide", disabled: !editable || busy, onclick: reopen },
-            t("reopen"),
-          )
-        : h(
-            "button",
-            {
-              class: "wide",
-              disabled: !editable || busy || !set,
-              onclick: () => add({ type: "set_end" }),
-            },
-            t("close_set"),
-          ),
-      // the match can end from the next set's screen too, which has no set yet:
-      // the event names the last set played
       h(
         "button",
         {
-          disabled: !editable || busy || !lastSet || over,
-          onclick: () => add({ type: "match_end", set: lastSet.set }),
-        },
-        t("end_match"),
-      ),
-      h(
-        "button",
-        {
+          "aria-label": t("menu"),
           onclick: () => {
             menu = true;
             render();
@@ -366,6 +405,36 @@ export function start(initial, root) {
         "⋯",
       ),
     );
+
+    // A set closes by itself at its target and a match is over when a team has
+    // won its sets, so these are the rare cases (called off by the referees, or
+    // a mistake), kept out of the bar. The match can end from the next set's
+    // screen too, which has no set yet: the event names the last set played.
+    extras = [
+      closed
+        ? h(
+            "button",
+            { disabled: !editable || busy, onclick: () => extra(reopen) },
+            t("reopen"),
+          )
+        : h(
+            "button",
+            {
+              disabled: !editable || busy || !set,
+              onclick: () => extra(() => add({ type: "set_end" })),
+            },
+            t("close_set"),
+          ),
+      h(
+        "button",
+        {
+          disabled: !editable || busy || !lastSet || over,
+          onclick: () =>
+            extra(() => add({ type: "match_end", set: lastSet.set })),
+        },
+        t("end_match"),
+      ),
+    ];
 
     show(
       root,
@@ -378,7 +447,7 @@ export function start(initial, root) {
         h("span", {}, `(${won.us}–${won.them})`),
       ),
       teamRow("us", us()),
-      middle,
+      ...middle,
       teamRow("them", them()),
       bar,
       menu ? menuView() : null,

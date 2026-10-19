@@ -519,7 +519,9 @@ ul.feed li.them {
 }
 
 .teamrow {
-  flex: 2 1 0px; /* px, not %: the screen's height is not fixed, so % would mean content */
+  flex: 1 1 0px; /* px, not %: the screen's height is not fixed, so % would mean content */
+  min-height: 56px;
+  max-height: 84px; /* the height left goes to the scorers */
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
@@ -550,21 +552,36 @@ ul.feed li.them {
   letter-spacing: 2px;
 }
 
+/* who scored the last point: it is empty when there is none to give a scorer */
+.ask {
+  flex: none;
+  min-height: 1.2em;
+  margin: 2px 0 -2px;
+  font-size: 0.85rem;
+  color: var(--pico-muted-color);
+}
+
 .players {
-  flex: 3 1 0px;
+  flex: 1 1 0px;
   display: grid;
   /* four to a row at normal size, fewer as the text grows, so a name stays whole */
   grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr));
-  grid-auto-rows: 1fr;
+  grid-auto-rows: minmax(48px, 1fr);
   gap: 6px;
 }
 
 .players button {
-  font-size: 0.85rem;
+  font-size: 1.9rem;
+  font-weight: 700;
   padding: 0 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.staff .players button.on {
+  background: var(--us);
+  color: #fff;
 }
 
 .staff button.start {
@@ -587,11 +604,30 @@ ul.feed li.them {
 
 .bar button {
   flex: 1;
-  font-size: 0.8rem;
+  font-size: 2rem;
+  line-height: 1;
 }
 
-.bar button.wide {
-  flex: 1.6;
+/* the undo is the one to find without looking */
+.staff .bar button.undo {
+  flex: 3;
+  font-size: 2.4rem;
+  font-weight: 700;
+  background: #f59e0b;
+  color: #111;
+}
+
+.staff .bar button.undo:disabled {
+  opacity: 0.4;
+}
+
+.menu .extras {
+  display: flex;
+  gap: 8px;
+}
+
+.menu .extras button {
+  padding: 12px 8px;
 }
 
 .menu {
