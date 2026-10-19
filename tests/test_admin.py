@@ -223,9 +223,7 @@ def test_the_admin_lists_the_teams_and_creates_one_on_the_page(tmp_path, page, l
     page.click("button.save")
     page.wait_for_selector(".card:has-text('Tau team')")
     created = json.loads((live.team_file.parent / "tau.json").read_text())
-    assert created["name"] == "Tau team" and created["roster"] == {
-        "ada_ostra": "Ada Östra"
-    }
+    assert created["name"] == "Tau team" and created["roster"] == {"1": "Ada Östra"}
     assert created["matches"] == [] and created["rules"]["best_of"] == 5
     assert page.errors == []
 
@@ -253,7 +251,7 @@ def test_the_coach_changes_the_team_from_the_start_page(tmp_path, page, live):
     page.click("button.save")
     page.wait_for_selector(".notice:has-text('Salvato')")
     saved = json.loads(live.team_file.read_text())
-    assert saved["name"] == "Edited" and saved["roster"]["dora_ostra"] == "Dora Östra"
+    assert saved["name"] == "Edited" and saved["roster"]["1"] == "Dora Östra"
     page.locator("label:has-text('Fuso orario') input").fill("Mars/Olympus")
     page.click("button.save")
     page.wait_for_selector(".notice.error:has-text('timezone')")

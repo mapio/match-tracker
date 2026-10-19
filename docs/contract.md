@@ -11,6 +11,14 @@ made first, then in the code that depends on it.
   the previous version in `<team>.json.bak`.
 - `data/<team>/<m>.json`, `<m>` the match number: the event log of one match,
   written by the server only.
+- `data/<team>/<m>.journal.jsonl`: the journal of that match, one line per
+  change of its log (the events added, removed and changed, whole, with the role
+  that acted, what it did and the time), added and flushed to the disk before
+  the log is replaced; `match-tracker replay <file>` prints the log it gives.
+  Players appear by identifier only. Never read by the server.
+- `data/<team>/team.journal.jsonl`: one line per save of the team file (team
+  form, season, call-up, creation) with the content the file had before; it
+  holds the roster, so first names. Never read by the server.
 - `i18n.json`: UI strings, `{lang: {key: text}}`, shared by all teams.
 
 ### Team file
@@ -30,8 +38,9 @@ made first, then in the code that depends on it.
   matches can be wiped by staff, and its `team` object carries `demo: true`.
 - `rules`: `best_of`, `points`, `last_set_points`, `win_by`, `timeouts_per_set`.
   A match may override any of them with its own `rules`.
-- `roster`: `{player-id: display name}`. Ids are stable slugs; the logs refer to
-  them.
+- `roster`: `{player-id: display name}`. Ids are stable and carry no name: the
+  editing pages make them numbers, as text (`"7"`), each one after the highest
+  in the roster; the logs refer to them.
 - `matches[]`: `n` (the match number, a positive integer, unique in the file and
   never changed once played; it is not the position in the list), `date` (local
   wall time, `YYYY-MM-DDTHH:MM`, no zone), `opponent` (name), `location`
@@ -332,9 +341,9 @@ What the coach changes:
   new date cannot be at a time already open for scoring, and a match is removed
   only when nothing was recorded for it.
 - **The team** (name, language, time zone, colors, contact, rules, roster), with
-  its matches left alone. A player is kept by an identifier made from her name
-  when she is added and never changed after, so renaming her cannot orphan a
-  record; one a log names cannot be taken off the roster.
+  its matches left alone. A player is kept by an identifier given when she is
+  added and never changed after, so renaming her cannot orphan a record; one a
+  log names cannot be taken off the roster.
 
 A save is validated exactly as at startup, including the refusal to drop a match
 or a player a log refers to; if it fails nothing is written and the answer says

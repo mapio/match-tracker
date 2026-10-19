@@ -12,10 +12,12 @@ import os
 import re
 import shutil
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from . import journal
 
 log = logging.getLogger("match-tracker")
 
@@ -383,8 +385,16 @@ class _Entry:
 class Teams:
     """The team files of a directory, reloaded when one changes."""
 
-    def __init__(self, teams_dir, data_dir, languages=None, salt=""):
+    def __init__(
+        self,
+        teams_dir,
+        data_dir,
+        languages=None,
+        salt="",
+        now=lambda: datetime.now(UTC),
+    ):
         self.on_reload = None  # called with the team id after an accepted reload
+        self._now = now
         self._languages = languages  # the keys of i18n.json; None skips the check
         self._teams_dir = Path(teams_dir)
         self._data_dir = Path(data_dir)
@@ -416,11 +426,17 @@ class Teams:
         """The team file as it is on disk, as JSON data, for a page to edit."""
         return json.loads(self._entries[team_id].path.read_text(encoding="utf-8"))
 
-    def save(self, team_id, raw):
+    def _journal(self, team_id, who, op, before):
+        record = journal.team_record(self._now(), who, op, before)
+        journal.append(journal.path_of(self._data_dir, team_id, journal.TEAM), record)
+
+    def save(self, team_id, raw, *, who="", op="save"):
         """Replace a team's file by `raw`, once it passes every check a start-up
-        would apply; a ConfigError names what is wrong and nothing is written."""
+        would apply; a ConfigError names what is wrong and nothing is written. The
+        file as it was goes to the team's journal first."""
         entry = self._entries[team_id]
         team = self._validated(team_id, raw)
+        self._journal(team_id, who, op, self.raw(team_id))
         _write(entry.path, raw, keep=True)
         entry.team, entry.mtime_ns = team, entry.path.stat().st_mtime_ns
         entry.refused_mtime_ns = None
@@ -429,7 +445,7 @@ class Teams:
             self.on_reload(team_id)
         return team
 
-    def create(self, team_id, raw):
+    def create(self, team_id, raw, *, who=""):
         """Add a team. Its tokens must not move those of the teams already here."""
         if team_id in self._entries:
             raise ConfigError(f"team id '{team_id}': already exists")
@@ -440,6 +456,7 @@ class Teams:
                 f"team id '{team_id}': its links would clash; pick another"
             )
         path = self._teams_dir / f"{team_id}.json"
+        self._journal(team_id, who, "create", None)
         _write(path, raw, keep=False)
         self._entries[team_id] = _Entry(path, team, path.stat().st_mtime_ns)
         self._set_tokens()

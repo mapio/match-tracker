@@ -40,7 +40,11 @@ def test_the_file_holds_next_id_and_the_events(tmp_path):
     Store(tmp_path).put("rho", 3, Log(4, EVENTS))
     raw = json.loads((tmp_path / "rho" / "3.json").read_text())
     assert raw["next_id"] == 4 and len(raw["events"]) == 3
-    assert [p.name for p in (tmp_path / "rho").iterdir()] == ["3.json"]
+    # beside it, no scratch file is left: only the journal of the change
+    assert sorted(p.name for p in (tmp_path / "rho").iterdir()) == [
+        "3.journal.jsonl",
+        "3.json",
+    ]
 
 
 def test_put_replaces_the_log_in_memory_and_on_disk(tmp_path):

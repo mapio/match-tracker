@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import oplog, rules, views
+from . import journal, oplog, rules, views
 from .limiter import Limiter
 from .rules import Draft, Event, RuleError
 from .store import Log, Store
@@ -142,8 +142,8 @@ def create_app(
 ):
     """The app; a test can fix `now` and shorten the stream's `keepalive` seconds."""
     languages = set(json.loads((STATIC / "i18n.json").read_text(encoding="utf-8")))
-    teams = Teams(teams_dir, data_dir, languages, salt)
-    store = Store(data_dir)
+    teams = Teams(teams_dir, data_dir, languages, salt, now)
+    store = Store(data_dir, now)
     # the address of the request in hand: only the limiter sees it, and keeps it
     # in memory
     caller = ContextVar("caller", default="?")
@@ -325,7 +325,7 @@ def create_app(
     async def api_admin_create(token: str, body: NewTeam):
         admin_of(token)
         try:
-            team = teams.create(body.id, with_info({}, body))
+            team = teams.create(body.id, with_info({}, body), who="admin")
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
         log.info("%s created by the admin", team.id)
@@ -340,7 +340,12 @@ def create_app(
     async def api_coach_team_change(token: str, body: TeamInfo):
         team = coach_of(token)
         try:
-            team = teams.save(team.id, with_info(teams.raw(team.id), body))
+            team = teams.save(
+                team.id,
+                with_info(teams.raw(team.id), body),
+                who="coach",
+                op="team",
+            )
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
         log.info("%s team form saved by the coach", team.id)
@@ -384,7 +389,7 @@ def create_app(
                 raise ApiError(409, "match_closed", "the date is already past")
         raw["matches"] = matches
         try:
-            team = teams.save(team.id, raw)
+            team = teams.save(team.id, raw, who="coach", op="season")
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
         log.info("%s season saved by the coach", team.id)
@@ -469,7 +474,7 @@ def create_app(
         except RuleError as error:
             log.info("%s/%d refused %s", team.id, match.n, error.code)
             raise
-        store.put(team.id, match.n, new)
+        store.put(team.id, match.n, new, who="staff", op=kind)
         log.info("%s/%d %s", team.id, match.n, what)  # only staff can score
         notify(team.id, match.n)
         return views.match_state(team, match, "staff", new, at)
@@ -557,7 +562,7 @@ def create_app(
         entry = next(m for m in raw["matches"] if m["n"] == match.n)
         entry["players"] = [p for p in team.roster if p in body.players]  # roster order
         try:
-            team = teams.save(team.id, raw)
+            team = teams.save(team.id, raw, who="coach", op="callup")
         except ConfigError as error:
             raise ApiError(422, "invalid_event", str(error)) from None
         log.info("%s/%d call-up saved by the coach", team.id, match.n)
@@ -568,7 +573,7 @@ def create_app(
         team, match = staff_match(token, n)
         if not team.demo:
             raise ApiError(404, "not_found", "not found")
-        store.reset(team.id, match.n)
+        store.reset(team.id, match.n, who="staff")
         log.info("%s/%d reset", team.id, match.n)
         notify(team.id, match.n)
         return views.match_state(
@@ -632,6 +637,8 @@ def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["urls"]:  # a subcommand; without one the server starts
         return links(argv[1:])
+    if argv[:1] == ["replay"]:
+        return journal.show(argv[1:])
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--teams", type=Path, default=Path("teams"))
     parser.add_argument("--data", type=Path, default=Path("data"))

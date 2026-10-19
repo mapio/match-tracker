@@ -4,18 +4,11 @@
 
 import { describeInvalid, h, icon, show, t } from "./common.js";
 
-// a player's identifier from the name: lowercase letters and digits, not taken
-function identifier(name, taken) {
-  const stem =
-    name
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "") || "player";
-  let id = stem;
-  for (let n = 2; taken.has(id); n += 1) id = `${stem}_${n}`;
-  return id;
+// a player's identifier: the number after the highest one in the roster, as
+// text, so that the logs say nothing of her without the roster
+function identifier(taken) {
+  const numbers = [...taken].map(Number).filter(Number.isInteger);
+  return String(Math.max(0, ...numbers) + 1);
 }
 
 // submit(body) saves; it gives the saved team, or nothing when it leaves the page
@@ -191,7 +184,7 @@ export function teamForm({
     for (const row of rows) {
       const name = row.name.trim();
       if (!name) continue;
-      row.id = row.id ?? identifier(name, taken);
+      row.id = row.id ?? identifier(taken);
       taken.add(row.id);
       roster[row.id] = name;
     }

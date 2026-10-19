@@ -27,6 +27,7 @@ uv sync
 uv run match-tracker              # 127.0.0.1:8000, teams/ and data/
 uv run match-tracker --teams teams --data data --logs logs --host 127.0.0.1 --port 8000
 uv run match-tracker urls --base https://example.org   # every team's links, as Markdown
+uv run match-tracker replay data/rho/1.journal.jsonl   # the log of a match, from its journal
 ```
 
 It is a uv application: `uv build` makes a wheel that carries its own pages, and
@@ -38,9 +39,10 @@ The server never logs them, since they are secret. Both are derived from the
 team's file name (and the salt, if there is one), so they are the same at every
 start. Each team is one file in `teams/` (`teams/rho.json` is an example), read
 at start and again whenever it changes, so a late change to who is playing needs
-no restart. The server writes `data/`, one event log per match, and, when a salt
-is in `teams/salt`, the team files themselves through the pages that edit them
-(`docs/contract.md`, *Editing*).
+no restart. The server writes `data/`, one event log per match with its
+append-only journal (so that a lost log can be rebuilt: `match-tracker replay`),
+and, when a salt is in `teams/salt`, the team files themselves through the pages
+that edit them (`docs/contract.md`, *Editing*).
 
 The server says nothing on the console but a failure to start. What the operator
 needs goes to `logs/app.log` (rotated daily at midnight, 30 files kept; the
@@ -53,10 +55,11 @@ The server stops within a few seconds of SIGTERM, even with families watching.
 
 `src/match_tracker/` is the package: `teams.py` (team files, tokens, reload, and
 the one safe way to save or create a team file), `rules.py` (the rules of a
-match, with no I/O), `store.py` (the event logs on disk), `views.py` (the JSON
-of the contract), `limiter.py`, `oplog.py` (the operator's log file),
-`server.py` (the app and `main`), and `static/` (the pages, their scripts and
-`i18n.json`). `tests/` has a file per module and two that drive a browser.
+match, with no I/O), `store.py` (the event logs on disk), `journal.py` (their
+journals), `views.py` (the JSON of the contract), `limiter.py`, `oplog.py` (the
+operator's log file), `server.py` (the app and `main`), and `static/` (the
+pages, their scripts and `i18n.json`). `tests/` has a file per module and two
+that drive a browser.
 
 The pages are styled with Pico.css, and those that edit use the Bootstrap Icons
 font for their buttons. Both are copied under `src/match_tracker/static/vendor/`
