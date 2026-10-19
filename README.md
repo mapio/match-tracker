@@ -12,8 +12,8 @@ The example team `rho` (invented names), in Italian, the default of its team
 file. Left, what a family sees on a phone; right, the bench's scoring screen.
 
 <p>
-<img src="docs/screenshots/family.png" alt="Family page of a live match: the score 14 to 11 in the fourth set, the finished sets with their times and the latest points with their scorers" width="300">
-<img src="docs/screenshots/staff.png" alt="Staff scoring screen: one large button for each team, a button for each player to say who scored, and the set controls" width="300">
+<img src="docs/screenshots/family.png" alt="Family page of a live match: the score 14 to 11 in the fourth set, the link to the chart of the points, the finished sets with their times and the latest points with their scorers" width="300">
+<img src="docs/screenshots/staff.png" alt="Staff scoring screen: a button for each team, the question who scored the last point with a large button for each player, and the undo and the menu below" width="300">
 </p>
 
 The coach's call-up of a match, on a tablet:
