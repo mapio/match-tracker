@@ -245,6 +245,7 @@ export async function start(initial, root) {
         `‹ ${t("match_page")}`,
       ),
       h("h1", {}, t("chart")),
+      h("a", { class: "privacy-top", href: "/privacy" }, t("privacy")),
       h("p", { class: "sub" }, `${state.team.name} – ${state.match.opponent}`),
       h(
         "div",
@@ -301,8 +302,14 @@ export async function start(initial, root) {
     root,
     frame,
     charts,
-    h("p", { class: "foot" }, t("chart_note")),
-    privacyLink(),
+    // turned on its side the page has no room for them: the notice goes and the
+    // link joins the title row
+    h(
+      "div",
+      { class: "chart-foot" },
+      h("p", { class: "foot" }, t("chart_note")),
+      privacyLink(),
+    ),
     bubble,
   );
   addEventListener("click", () => {

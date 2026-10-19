@@ -124,3 +124,21 @@ def test_a_match_not_started_says_so(tmp_path, page):
         page.wait_for_selector(".notice")
         assert page.inner_text(".notice") == "Non ancora iniziata"
     assert page.errors == []
+
+
+def test_a_phone_on_its_side_shows_the_whole_chart_without_scrolling(tmp_path, page):
+    with serve(tmp_path) as live:
+        play(live)
+        page.set_viewport_size({"width": 740, "height": 360})
+        page.goto(chart_url(live))
+        page.wait_for_selector("svg")
+        page.wait_for_timeout(200)
+        scrolls = page.evaluate(
+            "document.documentElement.scrollHeight > document.documentElement.clientHeight"
+        )
+        assert not scrolls
+        bottom = page.evaluate(
+            "document.querySelector('svg').getBoundingClientRect().bottom"
+        )
+        assert bottom <= 360
+    assert page.errors == []

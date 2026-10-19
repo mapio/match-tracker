@@ -886,3 +886,34 @@ ul.feed li.them {
     margin: 0;
   }
 }
+
+.chart .privacy-top {
+  display: none;
+}
+
+@media (max-height: 520px) {
+  #app.chart {
+    padding-bottom: 0;
+  }
+
+  .chart section {
+    margin-bottom: 0;
+  }
+
+  .chart .chart-foot {
+    display: none;
+  }
+
+  /* Pico's select is tall: here it shares the row with the key */
+  .chart .frame select {
+    height: auto;
+    padding: 2px 30px 2px 8px;
+    font-size: 0.95rem;
+  }
+
+  .chart .frame .privacy-top {
+    display: inline;
+    margin-left: auto;
+    font-size: 0.8rem;
+  }
+}
