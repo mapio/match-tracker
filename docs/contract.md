@@ -15,10 +15,10 @@ made first, then in the code that depends on it.
   change of its log (the events added, removed and changed, whole, with the role
   that acted, what it did and the time), added and flushed to the disk before
   the log is replaced; `match-tracker replay <file>` prints the log it gives.
-  Players appear by identifier only. Never read by the server.
+  Never read by the server.
 - `data/<team>/team.journal.jsonl`: one line per save of the team file (team
-  form, season, call-up, creation) with the content the file had before; it
-  holds the roster, so first names. Never read by the server.
+  form, season, creation) with the content the file had before. Never read by
+  the server.
 - `i18n.json`: UI strings, `{lang: {key: text}}`, shared by all teams.
 
 ### Team file
@@ -28,7 +28,6 @@ made first, then in the code that depends on it.
 - `timezone`: IANA name (`Europe/Rome`) in which the match `date`s are read.
 - `colors`: `{us, them}`, CSS colors, used for both the team and its timeout
   button.
-- `show_scorers`: whether the family pages show who scored.
 - `contact`: optional, an http or https URL (a chat link such as
   `https://wa.me/<number>`) where someone with a wrong link can ask. A team
   without it is not listed on the landing page. The address is never sent to a
@@ -38,32 +37,30 @@ made first, then in the code that depends on it.
   matches can be wiped by staff, and its `team` object carries `demo: true`.
 - `rules`: `best_of`, `points`, `last_set_points`, `win_by`, `timeouts_per_set`.
   A match may override any of them with its own `rules`.
-- `roster`: `{player-id: display name}`. Ids are stable and carry no name: the
-  editing pages make them numbers, as text (`"7"`), each one after the highest
-  in the roster; the logs refer to them.
 - `matches[]`: `n` (the match number, a positive integer, unique in the file and
   never changed once played; it is not the position in the list), `date` (local
   wall time, `YYYY-MM-DDTHH:MM`, no zone), `opponent` (name), `location`
-  (`name`, optional `address`), `players` (ids from `roster`: the participants,
-  shown as buttons), optional `rules`.
+  (`name`, optional `address`), optional `rules`.
+
+The app holds no name of a person: a team file with a `roster`, `show_scorers`
+or a match `players` is refused, naming the key.
 
 The server validates the whole file at startup and names the offending path.
 
 ### Reloading
 
-A team file can be edited while the server runs, for example to change the
-players called up for a match on the day. On each request the server compares
-the modification time of the file of the team concerned with the one it loaded;
-when it differs, the file is read again.
+A team file can be edited while the server runs, for example to change the date
+of a match. On each request the server compares the modification time of the
+file of the team concerned with the one it loaded; when it differs, the file is
+read again.
 
 - A file that passes the validation replaces that team's configuration (name,
-  colors, language, rules, roster, matches, `show_scorers`) at once, and a
-  `state` event goes to the streams of its matches. The derived state is
-  recomputed from the logs with the new configuration; a closed set stays
-  closed.
-- A file that fails the validation, or that drops a match which has a log or a
-  roster id which an event refers to, is refused: the previous configuration
-  stays in force and the server logs the reason once per change.
+  colors, language, rules, matches) at once, and a `state` event goes to the
+  streams of its matches. The derived state is recomputed from the logs with the
+  new configuration; a closed set stays closed.
+- A file that fails the validation, or that drops a match which has a log, is
+  refused: the previous configuration stays in force and the server logs the
+  reason once per change.
 - A team file added or removed by hand while running is not noticed; that needs
   a restart, since the tokens are derived from the set of files. A team created
   on the admin page is added at once.
@@ -116,7 +113,7 @@ revoked alone: changing the salt changes every one.
 it whole, atomically, after each change; `next_id` only grows, so an event id is
 never reused.
 
-An event is `{id, t, set, type, team?, player?}`:
+An event is `{id, t, set, type, team?}`:
 
 - `id`: integer from `next_id`.
 - `t`: UTC time of the request, ISO 8601 with milliseconds and `Z`, set by the
@@ -124,8 +121,7 @@ An event is `{id, t, set, type, team?, player?}`:
 - `set`: set number, from 1.
 - `type`: one of
   - `set_start`: the set is opened;
-  - `point`: needs `team` (`us` or `them`); `player` (a participant id) only
-    when `team` is `us` and is optional;
+  - `point`: needs `team` (`us` or `them`);
   - `timeout`: needs `team`;
   - `set_end`: the set is closed;
   - `match_end`: the match is over; `set` is the last set played, closed in the
@@ -180,8 +176,6 @@ What the server returns and streams. Staff and family differ only where noted.
   `Z`), `editable` whether now is within the window (a particular write may
   still break a rule).
 - `rules`: the effective rules of the match.
-- `players`: `{id: name}` of the participants (staff always; family only when
-  `show_scorers`).
 - `sets`: one entry per set that has a `set_start`:
   `{set, started_at, ended_at|null, closed, score: {us, them}, timeouts: {us, them}, winner: "us"|"them"|null}`.
 - `sets_won`: `{us, them}`.
@@ -189,11 +183,7 @@ What the server returns and streams. Staff and family differ only where noted.
   started.
 - Staff only: `events`, the whole log.
 - Family only: `timeline`, the points and timeouts of every set in order,
-  `{set, t, type, team}`, and `player` on a point of ours when `show_scorers`;
-  the chart takes the same from `events` for the staff.
-- Family only, when `show_scorers`: `feed`, the points of the current set, most
-  recent first, `{t, team, player|null, score: {us, them}}` with the score after
-  the point.
+  `{set, t, type, team}`; the chart takes the same from `events` for the staff.
 
 ## Endpoints
 
@@ -214,17 +204,16 @@ takes its role from the API's answer.
 - `/chat/<team id>`: `302` to the team's `contact`, `no-store`; `404` for an
   unknown team or one without a contact. Not counted by the limit.
 - `/<tok>`: with a family or staff token, the match list; with a coach token,
-  the coach's start page, with the call-up of each match; with the admin token,
-  the list of teams with their links.
+  the coach's start page; with the admin token, the list of teams with their
+  links.
 - `/<tok>/<m>`: with a family or staff token, the family match view or the staff
   screen.
 - `/<tok>/<m>/chart`: with a family or staff token, the chart of the points of
   the match, a line per team in each set; a read, so reachable also once the
   match is over. It is linked from the family match view and from the menu of
   the staff screen.
-- With a coach token: `/<tok>/<m>/players` is the call-up of a match,
-  `/<tok>/season` the season and `/<tok>/team` the team's settings. These pages
-  assume a tablet or a wider screen.
+- With a coach token: `/<tok>/season` is the season and `/<tok>/team` the team's
+  settings. These pages assume a tablet or a wider screen.
 - With the admin token: `/<tok>/new` creates a team.
 - `/privacy`: the privacy notice, the file `privacy.html` in the directory of
   the team files (`404` when it is not there); no token, and not counted by the
@@ -271,13 +260,11 @@ shorten further). Each read returns the state shaped for the token's role.
 
 Staff token only:
 
-- `POST /api/<tok>/<m>/events`: body `{set, type, team?, player?}`; creates an
-  event. `201`, body is the new staff state (an auto-closing `set_end`
-  included).
-- `PATCH /api/<tok>/<m>/events/<id>`: body with exactly one of `player` (an id
-  or `null`) on a point of `us`, or `team` on a timeout. `200`, new state. An id
-  or a set that is not a number is `422 invalid_event`, like one that does not
-  exist.
+- `POST /api/<tok>/<m>/events`: body `{set, type, team?}`; creates an event.
+  `201`, body is the new staff state (an auto-closing `set_end` included).
+- `PATCH /api/<tok>/<m>/events/<id>`: body `{team}` on a timeout. `200`, new
+  state. An id or a set that is not a number is `422 invalid_event`, like one
+  that does not exist.
 - `DELETE /api/<tok>/<m>/events/<id>`: a point or a timeout. `200`, new state.
 - `POST /api/<tok>/<m>/sets/<s>/reopen`: `200`, new state.
 - `POST /api/<tok>/<m>/reset`: deletes the whole log of the match, at any time;
@@ -289,34 +276,25 @@ the client from `events`.
 The same paths with another kind of token (see *Tokens*): with the team's coach
 token, `<tok>` below (see *Editing*):
 
-- `GET /api/<tok>`:
-  `{team, matches: [{n, date, opponent, called, callup_open}]}`, by date.
-- `GET /api/<tok>/<m>/callup`:
-  `{team, match: {n, date, opponent}, roster: {id: name}, players: [id], closes_at, open}`.
-- `PUT /api/<tok>/<m>/callup`: body `{players: [id]}`, replacing the players of
-  the match, saved in the roster's order; `200`, the same body as the `GET`.
-  `409 callup_closed` from 30 minutes before the start, `409 player_in_use` for
-  a player an event of the match names that the body leaves out,
-  `422 unknown_player` for an id the roster lacks.
+- `GET /api/<tok>`: `{team, matches: [{n, date, opponent}]}`, by date.
 - `GET /api/<tok>/season`:
   `{team, matches: [{n, date, opponent, location, closed, has_log}]}`, by date;
   `closed` is true from the opening of the match's window, `has_log` when events
   were recorded.
 - `PUT /api/<tok>/season`: body
   `{matches: [{n?, date, opponent, location: {name, address?}}]}`, the whole
-  list: a match with an `n` the team has keeps its players and rules and takes
-  the new date, opponent and place; one without gets the next number never used
-  and no players; one left out is removed. `200`, the same body as the `GET`.
-  `409 match_closed` for a change to a match whose window has opened, or to a
-  date whose window would already be open; `422 invalid_event` with the
-  validator's text otherwise, for example when a removed match has a log.
+  list: a match with an `n` the team has keeps its rules and takes the new date,
+  opponent and place; one without gets the next number never used; one left out
+  is removed. `200`, the same body as the `GET`. `409 match_closed` for a change
+  to a match whose window has opened, or to a date whose window would already be
+  open; `422 invalid_event` with the validator's text otherwise, for example
+  when a removed match has a log.
 - `GET /api/<tok>/team`:
-  `{id, name, lang, timezone, colors: {us, them}, contact, show_scorers, rules, roster, languages}`.
+  `{id, name, lang, timezone, colors: {us, them}, contact, rules, languages}`.
 - `PUT /api/<tok>/team`: the same fields but `id` and `languages`; the matches
-  and `demo` are left as they are, a player the roster drops leaves the
-  call-ups, and an empty `contact` is removed from the file. `200`, the same
-  body as the `GET`. `422 invalid_event` for an invalid value, also for a roster
-  change that drops a player a log names.
+  and `demo` are left as they are, and an empty `contact` is removed from the
+  file. `200`, the same body as the `GET`. `422 invalid_event` for an invalid
+  value.
 
 The admin, with the admin token:
 
@@ -324,10 +302,10 @@ The admin, with the admin token:
   `{teams: [{id, name, links: {family, staff, coach}}], languages}`; the links
   are paths.
 - `POST /api/<tok>`: body
-  `{id, name, lang, timezone, colors: {us, them}, contact?, show_scorers, rules, roster}`;
-  creates the team with no matches. `201`, the team as the coach's `GET` shows
-  it. `422 invalid_event` for an invalid value, an id in use, or an id whose
-  links would move another team's.
+  `{id, name, lang, timezone, colors: {us, them}, contact?, rules}`; creates the
+  team with no matches. `201`, the team as the coach's `GET` shows it.
+  `422 invalid_event` for an invalid value, an id in use, or an id whose links
+  would move another team's.
 
 ### Editing
 
@@ -335,31 +313,27 @@ Who may do what, by the token they hold:
 
 - **Staff**, anyone the bench trusts: score the match in play, and nothing else.
 - **The coach or DA** of a team (coach token), once the admin has created it:
-  the call-up, the season and the team's settings, all below.
+  the season and the team's settings, both below.
 - **The admin** (one for the server): create a team and hand out the links of
   all.
 
 What the coach changes:
 
-- **The call-up** of a match, until 30 minutes before the start (scoring opens
-  an hour before and is not affected).
 - **The season** (date, opponent and place of each match), before the matches
   are played: a match is read-only once its window has opened, a new match or a
   new date cannot be at a time already open for scoring, and a match is removed
   only when nothing was recorded for it.
-- **The team** (name, language, time zone, colors, contact, rules, roster), with
-  its matches left alone. A player is kept by an identifier given when she is
-  added and never changed after, so renaming her cannot orphan a record; one a
-  log names cannot be taken off the roster.
+- **The team** (name, language, time zone, colors, contact, rules), with its
+  matches left alone.
 
 A save is validated exactly as at startup, including the refusal to drop a match
-or a player a log refers to; if it fails nothing is written and the answer says
-why. When it passes, the previous file is copied to `<team>.json.bak`, the new
-one is written atomically in the layout of the repository's formatter (two-space
-indent, keys in a fixed order, no escaped non-ASCII), the new configuration is
-in force at once and the streams of the team's matches get a `state`. A new
-team's links are the ones its id gives; it is refused if that would move those
-of a team already there.
+a log refers to; if it fails nothing is written and the answer says why. When it
+passes, the previous file is copied to `<team>.json.bak`, the new one is written
+atomically in the layout of the repository's formatter (two-space indent, keys
+in a fixed order, no escaped non-ASCII), the new configuration is in force at
+once and the streams of the team's matches get a `state`. A new team's links are
+the ones its id gives; it is refused if that would move those of a team already
+there.
 
 ### Errors
 
@@ -369,12 +343,10 @@ Status `404` (unknown token or match), `409` (the request breaks a rule), `422`
 traceback). Body `{"error": code, "detail": text}`, with `code` among
 `set_not_started`, `set_closed`, `set_already_started`, `previous_set_open`,
 `match_over`, `not_open_yet`, `locked`, `timeout_limit`, `protected_event`,
-`unknown_player`, `invalid_event`, `not_found`, `rate_limited`, `server_error`,
-and for the editing pages `callup_closed`, `player_in_use`, `match_closed`.
-`unknown_player` and `invalid_event` (also an event id that does not exist, or a
-set that is not closed when reopening, or a value the editing pages refuse) come
-with `422`; the other rule codes, and the three for the editing pages, with
-`409`.
+`invalid_event`, `not_found`, `rate_limited`, `server_error`, and for the
+editing pages `match_closed`. `invalid_event` (also an event id that does not
+exist, or a set that is not closed when reopening, or a value the editing pages
+refuse) comes with `422`; the other rule codes, and `match_closed`, with `409`.
 
 ## Strings
 
