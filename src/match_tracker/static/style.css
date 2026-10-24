@@ -440,8 +440,20 @@ td .pill {
   flex: 1 1 0px; /* px, not %: the screen's height is not fixed, so % would mean content */
   min-height: 56px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1.75rem repeat(4, 1fr); /* the ball, then the buttons */
   gap: 6px;
+}
+
+.teamrow .ball {
+  align-self: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--pico-color);
+}
+
+.teamrow .ball.off {
+  background: none;
 }
 
 .teamrow .team {
@@ -469,12 +481,25 @@ td .pill {
   letter-spacing: 2px;
 }
 
-.staff button.start {
+.starts {
   flex: 3 1 0px;
-  font-size: 1.6rem;
+  display: flex;
+  gap: 6px;
+}
+
+.staff .starts button {
+  flex: 1;
+  font-size: 1.4rem;
   font-weight: 700;
-  background: #16a34a;
   color: #fff;
+}
+
+.staff .starts button.us {
+  background: var(--us);
+}
+
+.staff .starts button.them {
+  background: var(--them);
 }
 
 .bar {

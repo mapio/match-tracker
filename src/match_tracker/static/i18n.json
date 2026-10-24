@@ -2,7 +2,8 @@
   "en": {
     "undo": "Undo",
     "timeout": "Timeout",
-    "start_set": "Start set {0}",
+    "serves": "{0} serves",
+    "serving": "Serving",
     "close_set": "Close set",
     "reopen": "Reopen",
     "end_match": "End",
@@ -89,7 +90,8 @@
   "it": {
     "undo": "Annulla",
     "timeout": "Timeout",
-    "start_set": "Inizia set {0}",
+    "serves": "Batte {0}",
+    "serving": "Alla battuta",
     "close_set": "Chiudi set",
     "reopen": "Riapri",
     "end_match": "Fine",

@@ -153,16 +153,21 @@ export function start(initial, root) {
       timeout: t("timeout"),
     }[event.type];
     let control = null;
-    if (event.type === "timeout") {
+    if (event.type === "timeout" || event.type === "set_start") {
       const counts = state.sets.find((s) => s.set === event.set).timeouts;
       const full = (side) =>
-        side !== event.team && counts[side] >= state.rules.timeouts_per_set;
+        event.type === "timeout" &&
+        side !== event.team &&
+        counts[side] >= state.rules.timeouts_per_set;
       control = h(
         "select",
         {
           disabled: locked,
           onchange: (e) => fix(event.id, { team: e.target.value }),
         },
+        // a start from before the first server was recorded has none to show
+        !event.team &&
+          h("option", { value: "", selected: true, disabled: true }, "-"),
         ...[
           ["us", us()],
           ["them", them()],
@@ -256,6 +261,14 @@ export function start(initial, root) {
       h(
         "div",
         { class: "teamrow" },
+        // always there, so that the buttons do not move when the serve changes
+        h("span", {
+          class: set?.serving === side ? "ball" : "ball off",
+          ...(set?.serving === side && {
+            role: "img",
+            "aria-label": t("serving"),
+          }),
+        }),
         h(
           "button",
           { class: `team ${side}`, disabled: idle, onclick: () => point(side) },
@@ -273,17 +286,26 @@ export function start(initial, root) {
         ),
       );
 
+    // the buttons that start the next set, once there is one to start, by the
+    // team that serves first, between the two teams
     const startSet = h(
-      "button",
-      {
-        class: "start",
-        disabled: !editable || busy,
-        onclick: () => add({ type: "set_start" }),
-      },
-      t("start_set", view),
+      "div",
+      { class: "starts" },
+      ...[
+        ["us", us()],
+        ["them", them()],
+      ].map(([side, name]) =>
+        h(
+          "button",
+          {
+            class: `start ${side}`,
+            disabled: !editable || busy,
+            onclick: () => add({ type: "set_start", team: side }),
+          },
+          t("serves", name),
+        ),
+      ),
     );
-    // between the two teams: the button that starts the next set, once there is
-    // one to start
     const middle = set ? [] : [startSet];
 
     const bar = h(
