@@ -155,7 +155,7 @@ def test_a_rate_limited_page_says_to_wait_and_shows_no_contact(tmp_path, page):
 def test_a_demo_team_can_be_reset_by_staff_and_no_other_can(tmp_path):
     client, tokens = make_client(tmp_path, demo=True)
     staff, family = tokens["staff"], tokens["family"]
-    body = {"set": 1, "type": "set_start"}
+    body = {"set": 1, "type": "set_start", "team": "us"}
     assert client.post(f"/api/{staff}/1/events", json=body).status_code == 201
     assert client.get(f"/api/{staff}").json()["team"]["demo"] is True
     assert client.post(f"/api/{family}/1/reset").status_code == 404  # staff only

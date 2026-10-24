@@ -197,7 +197,7 @@ def test_a_match_with_a_record_cannot_be_removed_nor_changed(tmp_path):
     assert [m["has_log"] for m in season(client, teams)] == [False, False]
     # the log written by a real event shows as a record
     staff = teams.tokens["rho"]["staff"]
-    body = {"set": 1, "type": "set_start"}
+    body = {"set": 1, "type": "set_start", "team": "us"}
     assert client.post(f"/api/{staff}/1/events", json=body).status_code == 201
     assert season(client, teams)[0]["has_log"] is True
 

@@ -34,10 +34,13 @@ def open_staff(page, live):
 def test_a_set_is_played_from_the_bench(tmp_path, page):
     with serve(tmp_path) as live:
         open_staff(page, live)
-        assert page.inner_text(".start") == "Inizia set 1"
+        assert page.inner_text(".start.us") == "Batte Volley Test"
+        assert page.inner_text(".start.them") == "Batte Opponent"
         assert all(b.is_disabled() for b in page.locator(".team, .to").all())
-        page.click(".start")
+        assert page.locator(".ball:not(.off)").count() == 0
+        page.click(".start.them")
         page.wait_for_selector(".team.us:not([disabled])")
+        assert page.locator(".start").count() == 0
         page.click(".team.us")
         wait_score(page, "1 – 0")
         page.click(".team.them")
@@ -46,7 +49,7 @@ def test_a_set_is_played_from_the_bench(tmp_path, page):
         wait_score(page, "2 – 1")
         events = state_of(live)["events"]
         assert [(e["type"], e.get("team")) for e in events] == [
-            ("set_start", None),
+            ("set_start", "them"),
             ("point", "us"),
             ("point", "them"),
             ("point", "us"),
@@ -58,20 +61,86 @@ def test_a_set_is_played_from_the_bench(tmp_path, page):
     assert page.errors == []
 
 
+def ball_side(page):
+    """The side whose row holds the ball (none, or more than one, is an error)."""
+    sides = page.locator(".teamrow:has(.ball:not(.off)) .team").all()
+    assert len(sides) <= 1
+    return sides[0].get_attribute("class").split()[1] if sides else None
+
+
+def test_the_ball_follows_the_server_and_nothing_moves(tmp_path, page):
+    with serve(tmp_path) as live:
+        live.post(set=1, type="set_start", team="them")
+        open_staff(page, live)
+        assert ball_side(page) == "them"
+        ball = page.locator(".ball:not(.off)")
+        assert ball.get_attribute("role") == "img"
+        assert ball.get_attribute("aria-label") == "Alla battuta"
+        assert ball.bounding_box()["width"] >= 20
+        boxes = [page.locator(s).bounding_box() for s in (".team.us", ".team.them")]
+        page.click(".team.us")  # a side-out
+        page.wait_for_selector(".teamrow:has(.team.us) .ball:not(.off)")
+        assert ball_side(page) == "us"
+        assert boxes == [
+            page.locator(s).bounding_box() for s in (".team.us", ".team.them")
+        ]
+        page.click(".team.us")
+        wait_score(page, "2 – 0")
+        assert ball_side(page) == "us"
+        page.click(".bar button.undo")
+        page.click(".bar button.undo")
+        wait_score(page, "0 – 0")
+        assert ball_side(page) == "them"
+        page.click(".to.us")  # a timeout leaves the serve where it is
+        page.wait_for_function(
+            "document.querySelector('.to.us .dots').innerText === '●○'"
+        )
+        assert ball_side(page) == "them"
+    assert page.errors == []
+
+
+def test_the_ball_is_gone_when_the_set_is_closed(tmp_path, page):
+    with serve(tmp_path) as live:
+        live.post(set=1, type="set_start", team="us")
+        live.post(set=1, type="set_end")
+        open_staff(page, live)
+        assert ball_side(page) is None
+        assert page.locator(".start").count() == 2  # set 2 waits for its server
+
+
+def test_the_first_server_is_corrected_from_the_menu(tmp_path, page):
+    with serve(tmp_path) as live:
+        live.post(set=1, type="set_start", team="us")
+        open_staff(page, live)
+        page.click(".bar button:has-text('⋯')")
+        select = page.locator(".menu li select").last
+        assert select.input_value() == "us"
+        assert [o.inner_text() for o in select.locator("option").all()] == [
+            "Volley Test",
+            "Opponent",
+        ]
+        select.select_option("them")
+        page.wait_for_function(
+            "document.querySelector('.menu li select').value === 'them'"
+        )
+        assert state_of(live)["events"][0]["team"] == "them"
+        assert state_of(live)["sets"][0]["serving"] == "them"
+
+
 def test_the_screen_has_no_scorer_buttons(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         live.post(set=1, type="point", team="us")
         open_staff(page, live)
         assert page.locator(".players, .ask").count() == 0
         page.click(".bar button:has-text('⋯')")
-        point_row = page.locator(".menu li").nth(1)
+        point_row = page.locator(".menu li").nth(0)  # the newest first
         assert point_row.locator("select").count() == 0
 
 
 def test_a_team_runs_out_of_timeouts_and_the_button_stops(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         open_staff(page, live)
         for expected in ("●○", "●●"):
             page.click(".to.them")
@@ -84,16 +153,15 @@ def test_a_team_runs_out_of_timeouts_and_the_button_stops(tmp_path, page):
 
 def test_the_winning_point_closes_the_set_and_waits_for_the_next(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         for _ in range(24):
             live.post(set=1, type="point", team="us")
         open_staff(page, live)
         page.click(".team.us")
         page.wait_for_selector(".start")
-        assert page.inner_text(".start") == "Inizia set 2"
+        assert page.inner_text(".start.us") == "Batte Volley Test"
         assert "Set 2" in page.inner_text(".score")
         assert "(1–0)" in page.inner_text(".score")
-        assert page.inner_text(".start") == "Inizia set 2"
         page.click(".bar button:has-text('‹')")  # back to set 1: closed, buttons off
         assert "✓" in page.inner_text(".score") and "past" in page.get_attribute(
             ".score", "class"
@@ -107,7 +175,7 @@ def test_the_winning_point_closes_the_set_and_waits_for_the_next(tmp_path, page)
 
 def test_a_set_is_closed_by_hand_and_the_match_ended(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         live.post(set=1, type="point", team="us")
         open_staff(page, live)
         page.click(".bar button:has-text('⋯')")  # these two are extras of the menu
@@ -132,7 +200,7 @@ def test_a_set_is_closed_by_hand_and_the_match_ended(tmp_path, page):
 
 def test_the_fix_list_moves_and_deletes(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         live.post(set=1, type="point", team="us")
         live.post(set=1, type="timeout", team="us")
         live.post(set=1, type="timeout", team="them")
@@ -154,7 +222,7 @@ def test_the_fix_list_moves_and_deletes(tmp_path, page):
 
 def test_outside_the_window_the_screen_is_read_only(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         live.clock[0] = KICKOFF - timedelta(hours=3)
         page.clock.set_system_time(live.clock[0])
         open_staff(page, live)
@@ -172,7 +240,7 @@ def test_outside_the_window_the_screen_is_read_only(tmp_path, page):
 
 def test_a_refused_tap_shows_the_reason_and_repairs_the_screen(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         open_staff(page, live)
         live.post(set=1, type="set_end")  # another phone closed the set meanwhile
         page.click(".team.us")
@@ -200,7 +268,7 @@ def test_the_family_page_sees_what_the_staff_taps(tmp_path, browser):
 
 def test_the_staff_screen_shows_what_another_device_records(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         page.goto(staff_url(live) + "?poll=1")
         page.wait_for_selector(".score")
         live.post(set=1, type="point", team="us")
@@ -225,7 +293,7 @@ def test_the_staff_screen_says_when_the_connection_is_lost_and_when_it_is_back(
 def test_a_demo_team_has_a_reset_that_asks_first_and_wipes_the_match(tmp_path, page):
     with serve(tmp_path) as live:
         live.team_file.write_text(json.dumps({**VALID, "demo": True}))
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         live.post(set=1, type="point", team="us")
         open_staff(page, live)
         wait_score(page, "1")

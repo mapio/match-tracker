@@ -86,7 +86,7 @@ def test_a_known_token_is_never_limited_even_while_blocked(tmp_path):
     assert unknown(client, 50).status_code == 429
     assert client.get(f"/api/{tokens['family']}/1").status_code == 200
     assert client.get(f"/{tokens['staff']}/1").status_code == 200
-    body = {"set": 1, "type": "set_start"}
+    body = {"set": 1, "type": "set_start", "team": "us"}
     assert client.post(f"/api/{tokens['staff']}/1/events", json=body).status_code == 201
 
 

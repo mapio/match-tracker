@@ -137,7 +137,7 @@ def test_a_write_reaches_every_watcher_of_the_match(tmp_path):
     ):
         for reader in (one, two, staff):
             reader.next_state()
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         live.post(set=1, type="point", team="us")
         states = [
             reader.next_state(lambda s: s["sets"] and s["sets"][0]["score"]["us"] == 1)
@@ -151,7 +151,7 @@ def test_a_write_reaches_every_watcher_of_the_match(tmp_path):
 def test_quick_writes_end_with_the_latest_state(tmp_path):
     with serve(tmp_path) as live, live.watch("family") as watcher:
         watcher.next_state()
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         for _ in range(8):
             live.post(set=1, type="point", team="them")
         state = watcher.next_state(
@@ -168,7 +168,7 @@ def test_an_idle_stream_sends_keepalive_comments(tmp_path):
 
 def test_time_alone_changes_the_state_sent(tmp_path):
     with serve(tmp_path) as live, live.watch("family") as watcher:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         before = watcher.next_state(lambda s: s["match"]["status"] == "live")
         assert before["match"]["editable"]
         live.clock[0] = KICKOFF + timedelta(hours=25)
@@ -202,7 +202,7 @@ def test_a_watcher_that_leaves_is_forgotten_and_the_others_carry_on(tmp_path, ca
             "watcher left (1)" in r.getMessage() for r in caplog.records
         ):
             time.sleep(0.05)
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         assert stays.next_state(lambda s: s["sets"])
     lines = [r.getMessage() for r in caplog.records]
     assert "rho/1 watcher joined (1)" in lines and "rho/1 watcher joined (2)" in lines

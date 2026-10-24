@@ -29,7 +29,7 @@ def test_the_match_page_follows_the_staff_without_a_reload(tmp_path, page):
         page.goto(f"{live.base}/{live.tokens['family']}/1")
         page.wait_for_selector(".box")
         assert page.inner_text(".box") == "Non ancora iniziata"  # the team's language
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         for _ in range(2):
             live.post(set=1, type="point", team="us")
         live.post(set=1, type="point", team="them")
@@ -46,10 +46,10 @@ def test_the_match_page_follows_the_staff_without_a_reload(tmp_path, page):
 def test_a_closed_set_goes_to_the_table(tmp_path, page):
     with serve(tmp_path) as live:
         page.goto(f"{live.base}/{live.tokens['family']}/1")
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         for _ in range(25):
             live.post(set=1, type="point", team="us")
-        live.post(set=2, type="set_start")
+        live.post(set=2, type="set_start", team="us")
         for _ in range(14):
             live.post(set=2, type="point", team="them")
         page.wait_for_function(
@@ -66,7 +66,7 @@ def test_a_closed_set_goes_to_the_table(tmp_path, page):
 
 def test_the_language_can_be_overridden(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         live.post(set=1, type="point", team="us")
         page.goto(f"{live.base}/{live.tokens['family']}/1?lang=en")
         page.wait_for_selector("h1 .live")
@@ -78,7 +78,7 @@ def test_the_list_puts_the_next_match_on_top_then_the_results_newest_first(
     tmp_path, page
 ):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         live.post(set=1, type="point", team="us")
         live.clock[0] = KICKOFF + timedelta(hours=25)  # match 1 is over, 2 is next
         page.goto(f"{live.base}/{live.tokens['family']}")
@@ -94,7 +94,7 @@ def test_the_list_puts_the_next_match_on_top_then_the_results_newest_first(
 
 def test_a_live_match_comes_first_and_the_later_ones_follow(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         page.goto(f"{live.base}/{live.tokens['family']}")
         page.wait_for_selector(".card.featured .live")
         order = [
@@ -114,7 +114,9 @@ def test_no_page_shows_stray_null_or_false_text(tmp_path, page):
         ]
         steps = [
             lambda: None,  # nothing recorded yet
-            lambda: live.post(set=1, type="set_start"),  # no point, no closed set
+            lambda: live.post(
+                set=1, type="set_start", team="us"
+            ),  # no point, no closed set
             lambda: live.post(set=1, type="point", team="us"),
             lambda: live.post(
                 set=1, type="set_end"
@@ -146,7 +148,7 @@ def test_staff_pages_are_framed_and_titled_and_public_pages_are_not(tmp_path, pa
 
 def test_the_list_shows_the_live_score(tmp_path, page):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         live.post(set=1, type="point", team="us")
         page.goto(f"{live.base}/{live.tokens['family']}")
         page.wait_for_selector(".card .live")
@@ -163,7 +165,7 @@ def test_the_family_page_follows_the_match_even_if_the_stream_is_held_up(
     tmp_path, page
 ):
     with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
+        live.post(set=1, type="set_start", team="us")
         page.route("**/stream", lambda route: route.abort())
         page.goto(f"{live.base}/{live.tokens['family']}/1?poll=1")
         page.wait_for_selector(".big")

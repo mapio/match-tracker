@@ -18,8 +18,8 @@ def post(client, token, **body):
     return client.post(f"/api/{token}/1/events", json=body)
 
 
-def start(client, token, set_=1):
-    return post(client, token, set=set_, type="set_start")
+def start(client, token, set_=1, team="us"):
+    return post(client, token, set=set_, type="set_start", team=team)
 
 
 def stored(tmp_path):
@@ -57,17 +57,18 @@ def test_a_winning_point_adds_a_set_end_with_the_same_time(match, tmp_path):
 
 def test_events_are_stamped_with_the_server_time_and_saved(match, tmp_path):
     client, staff, _ = match
-    body = start(client, staff).json()
+    body = start(client, staff, team="them").json()
     assert body["events"] == [
         {
             "id": 1,
             "t": "2026-10-10T13:00:00.000Z",
             "set": 1,
             "type": "set_start",
+            "team": "them",
         }
     ]
     post(client, staff, set=1, type="point", team="us")
-    assert [e.team for e in stored(tmp_path).events] == [None, "us"]
+    assert [e.team for e in stored(tmp_path).events] == ["them", "us"]
     stored_json = (tmp_path / "data" / "rho" / "1.json").read_text()
     assert "player" not in stored_json
 
@@ -105,7 +106,8 @@ def test_writes_to_an_unknown_match_or_token_are_404(match):
     client, staff, _ = match
     assert (
         client.post(
-            f"/api/{staff}/9/events", json={"set": 1, "type": "set_start"}
+            f"/api/{staff}/9/events",
+            json={"set": 1, "type": "set_start", "team": "us"},
         ).status_code
         == 404
     )
@@ -209,7 +211,9 @@ def test_nothing_is_written_outside_the_window(tmp_path, offset, code):
         {"type": "set_start"},
         {"set": "1", "type": "set_start"},
         {"set": True, "type": "set_start"},
-        {"set": 1, "type": "set_start", "extra": 1},
+        {"set": 1, "type": "set_start", "team": "us", "extra": 1},
+        {"set": 1, "type": "set_start"},
+        {"set": 1, "type": "set_start", "team": "both"},
         {"set": 1, "type": "flip"},
         {"set": 0, "type": "set_start"},
         {"set": 1, "type": "point"},
@@ -239,7 +243,7 @@ def test_malformed_fixes_are_422(match):
     refused(client.patch(f"{url}/2", json={"team": "us"}), 422, "invalid_event")
     refused(client.patch(f"{url}/abc", json={"team": "us"}), 422, "invalid_event")
     refused(client.patch(f"{url}/99", json={"team": "us"}), 422, "invalid_event")
-    refused(client.patch(f"{url}/1", json={"team": "us"}), 422, "invalid_event")
+    refused(client.patch(f"{url}/1", json={"team": "both"}), 422, "invalid_event")
     refused(client.delete(f"{url}/99"), 422, "invalid_event")
     refused(client.post(f"/api/{staff}/1/sets/2/reopen"), 422, "invalid_event")
     refused(client.post(f"/api/{staff}/1/sets/x/reopen"), 422, "invalid_event")
@@ -254,8 +258,48 @@ def test_each_applied_and_refused_write_is_logged(match, caplog):
         client.delete(f"/api/{staff}/1/events/2")
     lines = [r.getMessage() for r in caplog.records]
     assert lines == [
-        "rho/1 set_start set 1",
+        "rho/1 set_start us set 1",
         "rho/1 point us set 1",
         "rho/1 refused set_not_started",
         "rho/1 delete event 2",
     ]
+
+
+def serving(body):
+    return body["sets"][0]["serving"]
+
+
+def test_the_state_says_who_serves_and_an_undo_gives_the_server_back(match):
+    client, staff, family = match
+    assert serving(start(client, staff, team="them").json()) == "them"
+    assert serving(post(client, staff, set=1, type="point", team="us").json()) == "us"
+    body = post(client, staff, set=1, type="timeout", team="them").json()
+    assert serving(body) == "us"
+    body = client.delete(f"/api/{staff}/1/events/2").json()
+    assert serving(body) == "them"
+    assert serving(client.get(f"/api/{family}/1").json()) == "them"
+
+
+def test_a_closed_set_serves_nobody(match):
+    client, staff, _ = match
+    start(client, staff)
+    body = post(client, staff, set=1, type="set_end").json()
+    assert serving(body) is None
+
+
+def test_the_first_server_of_a_set_can_be_changed_but_the_start_not_deleted(
+    match, tmp_path
+):
+    client, staff, _ = match
+    start(client, staff, team="us")
+    answer = client.patch(f"/api/{staff}/1/events/1", json={"team": "them"})
+    assert answer.status_code == 200
+    assert serving(answer.json()) == "them"
+    assert stored(tmp_path).events[0].team == "them"
+    refused(client.delete(f"/api/{staff}/1/events/1"), 409, "protected_event")
+    post(client, staff, set=1, type="set_end")
+    refused(
+        client.patch(f"/api/{staff}/1/events/2", json={"team": "us"}),
+        422,
+        "invalid_event",
+    )

@@ -19,7 +19,7 @@ def post(live, **event):
 
 
 def play(live):
-    post(live, set=1, type="set_start")
+    post(live, set=1, type="set_start", team="us")
     post(live, set=1, type="point", team="us")
     post(live, set=1, type="point", team="them")
     post(live, set=1, type="timeout", team="them")
@@ -56,7 +56,7 @@ def test_the_chart_follows_the_match_and_a_new_set_joins_the_menu(tmp_path, page
             "Tutti i set",
         ]
         post(live, set=1, type="set_end")
-        post(live, set=2, type="set_start")
+        post(live, set=2, type="set_start", team="us")
         post(live, set=2, type="point", team="us")
         page.wait_for_function(
             "document.querySelectorAll('select option').length === 3"

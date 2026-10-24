@@ -25,7 +25,8 @@ def test_the_journal_replays_to_the_log_after_every_change(tmp_path):
     staff = tokens["staff"]
     base = f"/api/{staff}/1"
     steps = [
-        ("post", "/events", {"set": 1, "type": "set_start"}),
+        ("post", "/events", {"set": 1, "type": "set_start", "team": "us"}),
+        ("patch", "/events/1", {"team": "them"}),  # the first server was wrong
         ("post", "/events", {"set": 1, "type": "point", "team": "us"}),
         ("post", "/events", {"set": 1, "type": "point", "team": "them"}),
         ("post", "/events", {"set": 1, "type": "timeout", "team": "us"}),
@@ -49,7 +50,7 @@ def test_the_journal_replays_to_the_log_after_every_change(tmp_path):
 def test_a_deleted_event_and_a_fix_are_kept_whole(tmp_path):
     client, tokens = make_client(tmp_path)
     base = f"/api/{tokens['staff']}/1"
-    client.post(f"{base}/events", json={"set": 1, "type": "set_start"})
+    client.post(f"{base}/events", json={"set": 1, "type": "set_start", "team": "us"})
     client.post(f"{base}/events", json={"set": 1, "type": "timeout", "team": "us"})
     client.patch(f"{base}/events/2", json={"team": "them"})
     client.delete(f"{base}/events/2")
@@ -68,7 +69,7 @@ def test_a_deleted_event_and_a_fix_are_kept_whole(tmp_path):
 def test_the_journal_is_private(tmp_path):
     client, tokens = make_client(tmp_path)
     base = f"/api/{tokens['staff']}/1"
-    client.post(f"{base}/events", json={"set": 1, "type": "set_start"})
+    client.post(f"{base}/events", json={"set": 1, "type": "set_start", "team": "us"})
     client.post(f"{base}/events", json={"set": 1, "type": "point", "team": "us"})
     path = journal_file(tmp_path)
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
@@ -97,7 +98,7 @@ def test_the_team_journal_keeps_the_file_as_it_was(tmp_path):
 def test_the_journal_command_prints_the_log(tmp_path, capsys):
     client, tokens = make_client(tmp_path)
     base = f"/api/{tokens['staff']}/1"
-    client.post(f"{base}/events", json={"set": 1, "type": "set_start"})
+    client.post(f"{base}/events", json={"set": 1, "type": "set_start", "team": "us"})
     server.main(["replay", str(journal_file(tmp_path))])
     assert json.loads(capsys.readouterr().out) == state_file(tmp_path)
 
@@ -106,7 +107,8 @@ def test_the_time_of_a_line_is_the_clock_of_the_app(tmp_path):
     later = KICKOFF + timedelta(minutes=5)
     client, tokens = make_client(tmp_path, now=later)
     client.post(
-        f"/api/{tokens['staff']}/1/events", json={"set": 1, "type": "set_start"}
+        f"/api/{tokens['staff']}/1/events",
+        json={"set": 1, "type": "set_start", "team": "us"},
     )
     record = json.loads(journal_file(tmp_path).read_text())
     assert record["t"] == journal.stamp(later)

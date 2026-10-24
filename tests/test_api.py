@@ -108,6 +108,7 @@ def test_the_state_of_a_match_for_staff(tmp_path):
             "closed": False,
             "score": {"us": 2, "them": 1},
             "timeouts": {"us": 0, "them": 1},
+            "serving": None,  # PLAYED is a log from before the first server
             "winner": None,
         }
     ]
@@ -119,6 +120,14 @@ def test_the_state_of_a_match_for_staff(tmp_path):
         "type": "point",
         "team": "us",
     }
+
+
+def test_the_server_is_whoever_scored_last_in_both_states(tmp_path):
+    log_of(tmp_path, 1, replace(PLAYED[0], team="them"), *PLAYED[1:])
+    client, tokens = make_client(tmp_path)
+    for role in ("staff", "family"):
+        body = client.get(f"/api/{tokens[role]}/1").json()
+        assert body["sets"][0]["serving"] == "us", role  # the last point was ours
 
 
 def test_the_family_state_has_no_events_no_feed_and_no_names(tmp_path):

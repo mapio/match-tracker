@@ -11,6 +11,12 @@ event log, endpoints).
 The example team `rho`, in Italian, the default of its team file. Left, what a
 family sees on a phone; right, the bench's scoring screen.
 
+The scoring screen shows which team serves, with a ball beside its button, so a
+wrongly pressed team button is spotted when the ball is on the wrong side. A set
+starts by tapping the team that serves first; the server then follows the points
+(a rally is won by the team that serves next), and a wrong first server is
+corrected from the menu.
+
 <p>
 <img src="docs/screenshots/family.png" alt="Family page of a live match: the score, the link to the chart of the points and the finished sets with their times" width="300">
 <img src="docs/screenshots/staff.png" alt="Staff scoring screen: a button for each team, and the undo and the menu below" width="300">
