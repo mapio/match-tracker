@@ -27,6 +27,7 @@ COACH_TOKEN_LENGTH = 10
 ADMIN_TOKEN_LENGTH = 14
 ROLES = ("family", "staff")
 ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]*")
+NAME_KEYS = ("roster", "show_scorers")  # refused: the app holds no name of a person
 RULE_KEYS = ("best_of", "points", "last_set_points", "win_by", "timeouts_per_set")
 
 
@@ -36,6 +37,16 @@ class ConfigError(Exception):
 
 def _join(path, key):
     return f"{path}.{key}" if path else key
+
+
+def _no_names(value, path, keys):
+    """Refuse, naming it, a key that would hold the name of a person."""
+    if isinstance(value, dict):
+        for key in keys:
+            if key in value:
+                raise ConfigError(
+                    f"{_join(path, key)}: the app holds no name of a person; remove it"
+                )
 
 
 def _object(value, path, required, optional=()):
@@ -130,7 +141,6 @@ class Match:
     date: datetime  # local wall time of the team's timezone, no zone attached
     opponent: str
     location: Location
-    players: tuple[str, ...]
     rules: Rules
 
 
@@ -141,9 +151,7 @@ class Team:
     lang: str
     timezone: ZoneInfo
     colors: Colors
-    show_scorers: bool
     rules: Rules
-    roster: dict[str, str]
     matches: tuple[Match, ...]
     contact: str | None = None  # where a visitor with a wrong link can ask
     demo: bool = False  # staff may wipe a match: for showing the app, not for use
@@ -151,19 +159,11 @@ class Team:
     @classmethod
     def parse(cls, team_id, raw, languages=None):
         _identifier(team_id, "team id")
+        _no_names(raw, "", NAME_KEYS)
         top = _object(
             raw,
             "",
-            (
-                "name",
-                "lang",
-                "timezone",
-                "colors",
-                "show_scorers",
-                "rules",
-                "roster",
-                "matches",
-            ),
+            ("name", "lang", "timezone", "colors", "rules", "matches"),
             ("contact", "demo"),
         )
         try:
@@ -171,19 +171,11 @@ class Team:
         except (ZoneInfoNotFoundError, ValueError):
             raise ConfigError(f"timezone: unknown zone '{top['timezone']}'") from None
         colors = _object(top["colors"], "colors", ("us", "them"))
-        if not isinstance(top["show_scorers"], bool):
-            raise ConfigError("show_scorers: expected true or false")
         rules = Rules.parse(top["rules"], "rules")
-        roster = top["roster"]
-        if not isinstance(roster, dict) or not roster:
-            raise ConfigError("roster: no players")
-        for player_id, name in roster.items():
-            _identifier(player_id, f"roster.{player_id}")
-            _text(name, f"roster.{player_id}")
         if not isinstance(top["matches"], list):
             raise ConfigError("matches: expected a list")
         matches = tuple(
-            _parse_match(item, f"matches[{i}]", roster, rules)
+            _parse_match(item, f"matches[{i}]", rules)
             for i, item in enumerate(top["matches"])
         )
         numbers = [m.n for m in matches]
@@ -198,9 +190,7 @@ class Team:
             colors=Colors(
                 _text(colors["us"], "colors.us"), _text(colors["them"], "colors.them")
             ),
-            show_scorers=top["show_scorers"],
             rules=rules,
-            roster=dict(roster),
             matches=matches,
             contact=_contact(top["contact"]) if "contact" in top else None,
             demo=_demo(top.get("demo", False)),
@@ -210,13 +200,9 @@ class Team:
         return next((m for m in self.matches if m.n == n), None)
 
 
-def _parse_match(raw, path, roster, team_rules):
-    obj = _object(
-        raw,
-        path,
-        ("n", "date", "opponent", "location", "players"),
-        ("rules",),
-    )
+def _parse_match(raw, path, team_rules):
+    _no_names(raw, path, ("players",))
+    obj = _object(raw, path, ("n", "date", "opponent", "location"), ("rules",))
     try:
         date = datetime.strptime(str(obj["date"]), "%Y-%m-%dT%H:%M")
     except ValueError:
@@ -224,14 +210,6 @@ def _parse_match(raw, path, roster, team_rules):
             f"{path}.date: expected YYYY-MM-DDTHH:MM, got {obj['date']!r}"
         ) from None
     place = _object(obj["location"], f"{path}.location", ("name",), ("address",))
-    if not isinstance(obj["players"], list):
-        raise ConfigError(f"{path}.players: expected a list")
-    players = tuple(obj["players"])
-    for i, player in enumerate(players):
-        if player not in roster:
-            raise ConfigError(f"{path}.players[{i}]: '{player}' is not in the roster")
-        if player in players[:i]:
-            raise ConfigError(f"{path}.players[{i}]: '{player}' is listed twice")
     return Match(
         n=_integer(obj["n"], f"{path}.n"),
         date=date,
@@ -242,7 +220,6 @@ def _parse_match(raw, path, roster, team_rules):
             if "address" in place
             else None,
         ),
-        players=players,
         rules=Rules.parse(obj["rules"], f"{path}.rules", team_rules)
         if "rules" in obj
         else team_rules,
@@ -317,7 +294,7 @@ def _read(path, languages=None):
 
 
 def _check_against_logs(team, data_dir):
-    """A team file may not drop a match that has a log, or a player in one."""
+    """A team file may not drop a match that has a log; a log may not name a player."""
     for log_path in sorted((data_dir / team.id).glob("*.json")):
         try:
             events = json.loads(log_path.read_text(encoding="utf-8"))["events"]
@@ -327,9 +304,11 @@ def _check_against_logs(team, data_dir):
         if team.match(n) is None:
             raise ConfigError(f"match {n} has a log and cannot be dropped")
         for event in events:
-            player = event.get("player")
-            if player is not None and player not in team.roster:
-                raise ConfigError(f"player '{player}' is in the log of match {n}")
+            if "player" in event:
+                raise ConfigError(
+                    f"{log_path}: event {event.get('id')} has a 'player': "
+                    "the app holds no name of a person"
+                )
 
 
 TOP_ORDER = (
@@ -339,12 +318,10 @@ TOP_ORDER = (
     "colors",
     "contact",
     "demo",
-    "show_scorers",
     "rules",
-    "roster",
     "matches",
 )
-MATCH_ORDER = ("n", "date", "opponent", "location", "players", "rules")
+MATCH_ORDER = ("n", "date", "opponent", "location", "rules")
 
 
 def _in_order(data, order):

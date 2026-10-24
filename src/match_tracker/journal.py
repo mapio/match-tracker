@@ -8,12 +8,9 @@ the state, so whatever the state shows is in the journal:
 
 - `data/<team>/<n>.journal.jsonl`: one line per change of the event log of match
   `n`, with what was added, removed and changed (whole events, and for a change
-  the event before and after). Players are identifiers, never names. `replay`
-  rebuilds the log from it.
+  the event before and after). `replay` rebuilds the log from it.
 - `data/<team>/team.journal.jsonl`: one line per save of the team file (team
-  form, season, call-up, creation), with the content the file had before. It
-  holds the roster, so first names: it is the one that must be deleted at the
-  end of the season (docs/deploy.md).
+  form, season, creation), with the content the file had before.
 
 The files are readable by their owner only. `match-tracker replay FILE` prints
 the event log a match journal gives, as the store writes it.

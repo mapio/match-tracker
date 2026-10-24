@@ -35,19 +35,18 @@ def event_to_json(event):
     }
     if event.team is not None:
         out["team"] = event.team
-    if event.player is not None:
-        out["player"] = event.player
     return out
 
 
 def _event_from_json(raw):
+    if "player" in raw:
+        raise ValueError(f"event {raw.get('id')} has a 'player'; the app holds no name")
     return Event(
         id=raw["id"],
         t=datetime.fromisoformat(raw["t"]),
         set=raw["set"],
         type=raw["type"],
         team=raw.get("team"),
-        player=raw.get("player"),
     )
 
 

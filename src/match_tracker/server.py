@@ -22,7 +22,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import journal, oplog, rules, views
@@ -33,7 +33,7 @@ from .teams import ConfigError, Teams, read_salt
 
 STATIC = Path(__file__).parent / "static"
 log = logging.getLogger("match-tracker")
-UNPROCESSABLE = ("invalid_event", "unknown_player")  # the other rule codes are 409
+UNPROCESSABLE = ("invalid_event",)  # the other rule codes are 409
 UNKNOWN_TOKEN_LIMIT = 10  # requests with an unknown token, per address, per window
 UNKNOWN_TOKEN_WINDOW = 60  # seconds
 # keep a copy, but ask the server before using it: the pages and scripts change
@@ -53,12 +53,6 @@ class NewEvent(BaseModel):
     set: StrictInt
     type: StrictStr
     team: StrictStr | None = None
-    player: StrictStr | None = None
-
-
-class CallUp(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    players: list[StrictStr]
 
 
 class Place(BaseModel):
@@ -101,9 +95,7 @@ class TeamInfo(BaseModel):
     timezone: StrictStr
     colors: ColorsIn
     contact: StrictStr | None = None
-    show_scorers: StrictBool
     rules: RulesIn
-    roster: dict[StrictStr, StrictStr]
 
 
 class NewTeam(TeamInfo):
@@ -116,10 +108,9 @@ class Season(BaseModel):
 
 
 class Fix(BaseModel):
-    """Either a `player` (an id or null) or a `team`; which one is checked later."""
+    """The team a timeout is given to; that it is sent is checked later."""
 
     model_config = ConfigDict(extra="forbid")
-    player: StrictStr | None = None
     team: StrictStr | None = None
 
 
@@ -289,32 +280,21 @@ def create_app(
             unknown_token()
         return team
 
-    def coach_match(token, n):
-        team = coach_of(token)
-        match = team.match(int(n)) if n.isascii() and n.isdigit() else None
-        if match is None:
-            raise ApiError(404, "not_found", "not found")
-        return team, match
-
     def admin_of(token):
         if not teams.is_admin(token):
             unknown_token()
 
     def with_info(raw, info):
         """`raw` with what the team form edits replaced by `info`; the matches are
-        kept, minus players the roster no longer has."""
+        kept."""
         data = info.model_dump(exclude={"id"})
         raw = {**raw, **{k: data[k] for k in ("name", "lang", "timezone", "colors")}}
-        raw.update(show_scorers=data["show_scorers"], rules=data["rules"])
-        raw["roster"] = data["roster"]
+        raw["rules"] = data["rules"]
         if data["contact"]:
             raw["contact"] = data["contact"]
         else:
             raw.pop("contact", None)
-        raw["matches"] = [
-            {**m, "players": [p for p in m["players"] if p in raw["roster"]]}
-            for m in raw.get("matches", [])
-        ]
+        raw.setdefault("matches", [])
         return raw
 
     # The token alone says what it is for: six letters read a team (family) or score
@@ -372,7 +352,7 @@ def create_app(
             fields = {"date": item.date, "opponent": item.opponent, "location": place}
             if item.n is None:
                 free += 1
-                entry = {"n": free, "players": []}
+                entry = {"n": free}
             else:
                 entry = dict(old[item.n])
                 if all(entry.get(k) == v for k, v in fields.items()):
@@ -405,7 +385,7 @@ def create_app(
             return {"teams": views.admin_teams(teams), "languages": sorted(languages)}
         coach = teams.find_coach(token)
         if coach is not None:
-            return views.coach_dashboard(coach, now())
+            return views.coach_dashboard(coach)
         team, role = team_of(token)
         return views.match_list(team, role, store, now())
 
@@ -482,14 +462,12 @@ def create_app(
     @app.post("/api/{token}/{n}/events", status_code=201)
     async def api_add(token: str, n: str, body: NewEvent):
         team, match = staff_match(token, n)
-        draft = Draft(body.set, body.type, body.team, body.player)
+        draft = Draft(body.set, body.type, body.team)
 
         def build(record, window, at):
-            added = rules.check(
-                match.rules, window, match.players, record.events, draft, at
-            )
+            added = rules.check(match.rules, window, record.events, draft, at)
             events = tuple(
-                Event(record.next_id + i, at, d.set, d.type, d.team, d.player)
+                Event(record.next_id + i, at, d.set, d.type, d.team)
                 for i, d in enumerate(added)
             )
             return Log(record.next_id + len(added), (*record.events, *events))
@@ -501,19 +479,13 @@ def create_app(
     async def api_fix(token: str, n: str, event_id: str, body: Fix):
         team, match = staff_match(token, n)
         number(event_id, "event id")
-        fields = body.model_fields_set
-        if fields not in ({"player"}, {"team"}):
-            raise RuleError("invalid_event", "send either 'player' or 'team'")
+        if body.model_fields_set != {"team"}:
+            raise RuleError("invalid_event", "send the 'team' of the timeout")
 
         def build(record, window, at):
-            if fields == {"player"}:
-                events = rules.set_player(
-                    window, match.players, record.events, int(event_id), body.player, at
-                )
-            else:
-                events = rules.set_timeout_team(
-                    match.rules, window, record.events, int(event_id), body.team, at
-                )
+            events = rules.set_timeout_team(
+                match.rules, window, record.events, int(event_id), body.team, at
+            )
             return Log(record.next_id, events)
 
         return change(team, match, "fix", f"fix event {event_id}", build)
@@ -539,34 +511,6 @@ def create_app(
             return Log(record.next_id, events)
 
         return change(team, match, "reopen", f"reopen set {set_number}", build)
-
-    @app.get("/api/{token}/{n}/callup")
-    async def api_callup(token: str, n: str):
-        team, match = coach_match(token, n)
-        return views.callup(team, match, now())
-
-    @app.put("/api/{token}/{n}/callup")
-    async def api_callup_change(token: str, n: str, body: CallUp):
-        team, match = coach_match(token, n)
-        if now() >= views.window_of(team, match).callup_closes_at:
-            raise ApiError(409, "callup_closed", "the call-up is closed")
-        unknown = set(body.players) - set(team.roster)
-        if unknown:
-            raise ApiError(422, "unknown_player", f"unknown player '{min(unknown)}'")
-        used = {e.player for e in store.get(team.id, match.n).events if e.player}
-        if not used <= set(body.players):
-            raise ApiError(
-                409, "player_in_use", f"'{min(used - set(body.players))}' has played"
-            )
-        raw = teams.raw(team.id)
-        entry = next(m for m in raw["matches"] if m["n"] == match.n)
-        entry["players"] = [p for p in team.roster if p in body.players]  # roster order
-        try:
-            team = teams.save(team.id, raw, who="coach", op="callup")
-        except ConfigError as error:
-            raise ApiError(422, "invalid_event", str(error)) from None
-        log.info("%s/%d call-up saved by the coach", team.id, match.n)
-        return views.callup(team, team.match(match.n), now())
 
     @app.post("/api/{token}/{n}/reset")
     async def api_reset(token: str, n: str):
@@ -595,11 +539,6 @@ def create_app(
             return page("coach.html")
         team_of(token)  # a token of no team is refused here
         return page("list.html")
-
-    @app.get("/{token}/{n}/players")
-    async def page_callup(token: str, n: str):
-        coach_match(token, n)
-        return page("callup.html")
 
     @app.get("/{token}/{n}/chart")
     async def page_chart(token: str, n: str):

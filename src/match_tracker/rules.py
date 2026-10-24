@@ -10,7 +10,6 @@ from datetime import UTC, datetime, timedelta
 
 OPENS_BEFORE = timedelta(minutes=60)
 LOCKS_AFTER = timedelta(hours=24)
-CALLUP_CLOSES_BEFORE = timedelta(minutes=30)
 TEAMS = ("us", "them")
 TYPES = ("set_start", "point", "timeout", "set_end", "match_end")
 
@@ -31,7 +30,6 @@ class Draft:
     set: int
     type: str
     team: str | None = None
-    player: str | None = None
 
 
 @dataclass(frozen=True)
@@ -41,7 +39,6 @@ class Event:
     set: int
     type: str
     team: str | None = None
-    player: str | None = None
 
 
 @dataclass(frozen=True)
@@ -69,11 +66,6 @@ class Window:
         # through UTC, so that a clock change in between does not shift the span
         start = date.replace(tzinfo=zone).astimezone(UTC)
         return cls(start - OPENS_BEFORE, start + LOCKS_AFTER, start)
-
-    @property
-    def callup_closes_at(self):
-        """The players called up may be changed until then, scoring or not."""
-        return self.starts_at - CALLUP_CLOSES_BEFORE
 
     def is_open(self, now):
         return self.opens_at <= now < self.locks_at
@@ -171,7 +163,7 @@ def _invalid(detail):
     return RuleError("invalid_event", detail)
 
 
-def check(rules, window, participants, events, draft, now):
+def check(rules, window, events, draft, now):
     """The events to append for a requested one: it, plus an automatic set_end."""
     window.check(now)
     if draft.type not in TYPES:
@@ -181,11 +173,6 @@ def check(rules, window, participants, events, draft, now):
     has_team = draft.type in ("point", "timeout")
     if has_team != (draft.team is not None) or (has_team and draft.team not in TEAMS):
         raise _invalid(f"'{draft.type}' {'needs' if has_team else 'takes no'} a team")
-    if draft.player is not None:
-        if (draft.type, draft.team) != ("point", "us"):
-            raise _invalid("only a point of 'us' has a player")
-        if draft.player not in participants:
-            raise RuleError("unknown_player", f"'{draft.player}' is not playing")
     state = derive(rules, window, events, now)
     if state.status == "over":
         raise RuleError("match_over", "the match is over")
@@ -229,17 +216,6 @@ def delete(window, events, event_id, now):
     if event.type not in ("point", "timeout"):
         raise RuleError("protected_event", f"a '{event.type}' cannot be deleted")
     return tuple(e for e in events if e.id != event_id)
-
-
-def set_player(window, participants, events, event_id, player, now):
-    """The log with the scorer of a point of 'us' attributed, changed or cleared."""
-    window.check(now)
-    index, event = _find(events, event_id)
-    if (event.type, event.team) != ("point", "us"):
-        raise _invalid("only a point of 'us' has a player")
-    if player is not None and player not in participants:
-        raise RuleError("unknown_player", f"'{player}' is not playing")
-    return (*events[:index], replace(event, player=player), *events[index + 1 :])
 
 
 def set_timeout_team(rules, window, events, event_id, team, now):

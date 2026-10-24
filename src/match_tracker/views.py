@@ -3,7 +3,7 @@
 from dataclasses import asdict
 from urllib.parse import urlsplit
 
-from .rules import Counts, Window, derive
+from .rules import Window, derive
 from .store import event_to_json, format_time
 
 WHATSAPP_HOSTS = ("wa.me", "chat.whatsapp.com", "api.whatsapp.com")
@@ -66,38 +66,20 @@ def _set(state):
     }
 
 
-def _feed(events, current):
-    score, feed = Counts(), []
-    for event in events:
-        if event.set == current and event.type == "point":
-            score = score.plus(event.team)
-            feed.append(
-                {
-                    "t": format_time(event.t),
-                    "team": event.team,
-                    "player": event.player,
-                    "score": _counts(score),
-                }
-            )
-    return feed[::-1]
-
-
-def _timeline(events, show_scorers):
-    """The points and timeouts of every set, for the chart of the families, who
-    get the scorer of a point of ours only when the team lets them see names."""
+def _timeline(events):
+    """The points and timeouts of every set, for the chart of the families."""
     timeline = []
     for event in events:
         if event.type not in ("point", "timeout"):
             continue
-        item = {
-            "set": event.set,
-            "t": format_time(event.t),
-            "type": event.type,
-            "team": event.team,
-        }
-        if show_scorers and event.player is not None:
-            item["player"] = event.player
-        timeline.append(item)
+        timeline.append(
+            {
+                "set": event.set,
+                "t": format_time(event.t),
+                "type": event.type,
+                "team": event.team,
+            }
+        )
     return timeline
 
 
@@ -124,32 +106,10 @@ def match_state(team, match, role, log, now):
         "current": state.current,
     }
     if role == "staff":
-        out["players"] = {p: team.roster[p] for p in match.players}
         out["events"] = [event_to_json(e) for e in log.events]
     else:
-        out["timeline"] = _timeline(log.events, team.show_scorers)
-        if team.show_scorers:
-            out["players"] = {p: team.roster[p] for p in match.players}
-            out["feed"] = _feed(log.events, state.current)
+        out["timeline"] = _timeline(log.events)
     return out
-
-
-def callup(team, match, now):
-    """The players of the team and those called up for a match, for the page that
-    changes them."""
-    closes = window_of(team, match).callup_closes_at
-    return {
-        "team": _team(team),
-        "match": {
-            "n": match.n,
-            "date": match.date.isoformat(timespec="minutes"),
-            "opponent": match.opponent,
-        },
-        "roster": dict(team.roster),
-        "players": list(match.players),
-        "closes_at": format_time(closes),
-        "open": now < closes,
-    }
 
 
 def admin_teams(teams):
@@ -179,9 +139,7 @@ def team_info(team, raw, languages):
         "timezone": raw["timezone"],
         "colors": raw["colors"],
         "contact": raw.get("contact"),
-        "show_scorers": team.show_scorers,
         "rules": raw["rules"],
-        "roster": dict(team.roster),
         "languages": sorted(languages),
     }
 
@@ -212,8 +170,8 @@ def season(team, store, now):
     }
 
 
-def coach_dashboard(team, now):
-    """What the coach's start page lists: each match with its call-up."""
+def coach_dashboard(team):
+    """What the coach's start page lists: each match."""
     return {
         "team": _team(team),
         "matches": [
@@ -221,8 +179,6 @@ def coach_dashboard(team, now):
                 "n": m.n,
                 "date": m.date.isoformat(timespec="minutes"),
                 "opponent": m.opponent,
-                "called": len(m.players),
-                "callup_open": now < window_of(team, m).callup_closes_at,
             }
             for m in sorted(team.matches, key=lambda m: (m.date, m.n))
         ],
