@@ -120,7 +120,8 @@ An event is `{id, t, set, type, team?}`:
   server.
 - `set`: set number, from 1.
 - `type`: one of
-  - `set_start`: the set is opened;
+  - `set_start`: the set is opened; needs `team`, the team that serves first (a
+    log written before this field has none, and is read as it stands);
   - `point`: needs `team` (`us` or `them`);
   - `timeout`: needs `team`;
   - `set_end`: the set is closed;
@@ -142,8 +143,9 @@ Everything else is derived from the log.
   winning; only reopening opens it.
 - A closed set is reopened only by the reopen action, which deletes its
   `set_end` and a `match_end` that follows it.
-- `set_start`, `set_end` and `match_end` are never deleted or patched through
-  the event endpoints.
+- `set_start`, `set_end` and `match_end` are never deleted through the event
+  endpoints, and only the `team` of a `set_start` is patched (a first server
+  picked wrongly).
 - The match is over when a team has won `ceil(best_of / 2)` closed sets, a
   `match_end` exists, or the match is locked.
 
@@ -177,7 +179,11 @@ What the server returns and streams. Staff and family differ only where noted.
   still break a rule).
 - `rules`: the effective rules of the match.
 - `sets`: one entry per set that has a `set_start`:
-  `{set, started_at, ended_at|null, closed, score: {us, them}, timeouts: {us, them}, winner: "us"|"them"|null}`.
+  `{set, started_at, ended_at|null, closed, score: {us, them}, timeouts: {us, them}, serving: "us"|"them"|null, winner: "us"|"them"|null}`;
+  `serving` is the team that serves the next point: the team that scored the
+  last point of the set (a rally is won by the team that serves next), or the
+  first server while there is none; `null` once the set is closed, and for a set
+  whose `set_start` has no `team`.
 - `sets_won`: `{us, them}`.
 - `current`: number of the set to show: the first not closed, 1 if none has
   started.
@@ -262,9 +268,9 @@ Staff token only:
 
 - `POST /api/<tok>/<m>/events`: body `{set, type, team?}`; creates an event.
   `201`, body is the new staff state (an auto-closing `set_end` included).
-- `PATCH /api/<tok>/<m>/events/<id>`: body `{team}` on a timeout. `200`, new
-  state. An id or a set that is not a number is `422 invalid_event`, like one
-  that does not exist.
+- `PATCH /api/<tok>/<m>/events/<id>`: body `{team}` on a timeout or a
+  `set_start`. `200`, new state. An id or a set that is not a number is
+  `422 invalid_event`, like one that does not exist.
 - `DELETE /api/<tok>/<m>/events/<id>`: a point or a timeout. `200`, new state.
 - `POST /api/<tok>/<m>/sets/<s>/reopen`: `200`, new state.
 - `POST /api/<tok>/<m>/reset`: deletes the whole log of the match, at any time;

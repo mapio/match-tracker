@@ -85,6 +85,7 @@ class SetState:
     closed: bool
     score: Counts
     timeouts: Counts
+    serving: str | None
     winner: str | None
 
 
@@ -108,14 +109,19 @@ def derive(rules, window, events, now):
     locked = now >= window.locks_at
     started, ended = {}, {}
     points, timeouts = {}, {}
+    serving = {}  # the first server, then whoever scored last
     match_ended = False
     for event in events:
         if event.type == "set_start":
+            if event.set not in started:
+                serving[event.set] = event.team  # None in a log from before the team
             started.setdefault(event.set, event.t)
         elif event.type == "set_end":
             ended.setdefault(event.set, event.t)
         elif event.type == "point":
             points[event.set] = points.get(event.set, Counts()).plus(event.team)
+            if serving.get(event.set) is not None:  # not in an old log
+                serving[event.set] = event.team
         elif event.type == "timeout":
             timeouts[event.set] = timeouts.get(event.set, Counts()).plus(event.team)
         else:
@@ -132,6 +138,7 @@ def derive(rules, window, events, now):
                 closed=ended_at is not None,
                 score=score,
                 timeouts=timeouts.get(n, Counts()),
+                serving=None if ended_at is not None else serving[n],
                 winner=_winner(score) if ended_at is not None else None,
             )
         )
@@ -170,7 +177,7 @@ def check(rules, window, events, draft, now):
         raise _invalid(f"unknown event type '{draft.type}'")
     if not 1 <= draft.set <= rules.best_of:
         raise _invalid(f"set must be between 1 and {rules.best_of}")
-    has_team = draft.type in ("point", "timeout")
+    has_team = draft.type in ("set_start", "point", "timeout")
     if has_team != (draft.team is not None) or (has_team and draft.team not in TEAMS):
         raise _invalid(f"'{draft.type}' {'needs' if has_team else 'takes no'} a team")
     state = derive(rules, window, events, now)
@@ -218,14 +225,17 @@ def delete(window, events, event_id, now):
     return tuple(e for e in events if e.id != event_id)
 
 
-def set_timeout_team(rules, window, events, event_id, team, now):
-    """The log with a timeout given to the other team, if that has one left."""
+def set_team(rules, window, events, event_id, team, now):
+    """The log with a timeout given to the other team, if that has one left, or
+    with another team serving first."""
     window.check(now)
     index, event = _find(events, event_id)
-    if event.type != "timeout":
-        raise _invalid("only a timeout has a team to change")
+    if event.type not in ("timeout", "set_start"):
+        raise _invalid("only a timeout or a set start has a team to change")
     if team not in TEAMS:
         raise _invalid(f"unknown team '{team}'")
+    if event.type == "set_start":
+        return (*events[:index], replace(event, team=team), *events[index + 1 :])
     used = sum(
         e.type == "timeout" and e.set == event.set and e.team == team for e in events
     )

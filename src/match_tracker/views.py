@@ -62,6 +62,7 @@ def _set(state):
         "closed": state.closed,
         "score": _counts(state.score),
         "timeouts": _counts(state.timeouts),
+        "serving": state.serving,
         "winner": state.winner,
     }
 

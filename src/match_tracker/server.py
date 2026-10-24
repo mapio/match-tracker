@@ -108,7 +108,7 @@ class Season(BaseModel):
 
 
 class Fix(BaseModel):
-    """The team a timeout is given to; that it is sent is checked later."""
+    """The team a timeout is given to, or that serves first; that it is sent is checked later."""
 
     model_config = ConfigDict(extra="forbid")
     team: StrictStr | None = None
@@ -480,10 +480,10 @@ def create_app(
         team, match = staff_match(token, n)
         number(event_id, "event id")
         if body.model_fields_set != {"team"}:
-            raise RuleError("invalid_event", "send the 'team' of the timeout")
+            raise RuleError("invalid_event", "send the 'team' to change")
 
         def build(record, window, at):
-            events = rules.set_timeout_team(
+            events = rules.set_team(
                 match.rules, window, record.events, int(event_id), body.team, at
             )
             return Log(record.next_id, events)
