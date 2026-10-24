@@ -2,7 +2,6 @@
 
 Skipped where Playwright has no browser to launch."""
 
-import json
 from datetime import timedelta
 
 from test_season import SALT
@@ -21,7 +20,7 @@ def post(live, **event):
 
 def play(live):
     post(live, set=1, type="set_start")
-    post(live, set=1, type="point", team="us", player="anna")
+    post(live, set=1, type="point", team="us")
     post(live, set=1, type="point", team="them")
     post(live, set=1, type="timeout", team="them")
     post(live, set=1, type="point", team="us")
@@ -39,7 +38,7 @@ def test_the_chart_draws_the_set_and_a_tap_on_a_dot_tells_the_point(tmp_path, pa
         page.locator(".hit").nth(1).click()  # the first point of ours, on top of theirs
         tip = page.locator(".tip")
         assert tip.is_visible()
-        assert tip.inner_text().startswith("1–0") and "Anna" in tip.inner_text()
+        assert tip.inner_text().startswith("1–0")
         page.mouse.click(5, 5)
         assert tip.is_hidden()
     assert page.errors == []
@@ -79,28 +78,13 @@ def test_the_bubble_of_a_point_of_theirs_says_no_false_or_null(tmp_path, page):
     assert page.errors == []
 
 
-def test_the_scorers_are_not_in_the_bubble_when_the_team_hides_them(tmp_path, page):
-    with serve(tmp_path) as live:
-        raw = json.loads(live.team_file.read_text())
-        live.team_file.write_text(json.dumps(raw | {"show_scorers": False}))
-        play(live)
-        page.goto(chart_url(live))
-        page.wait_for_selector("svg")
-        page.locator(".hit").nth(1).click()  # the first point of ours, on top of theirs
-        assert page.locator(".tip").inner_text().startswith("1–0")
-        assert "Anna" not in page.inner_text("body")
-    assert page.errors == []
-
-
-def test_the_staff_see_the_chart_with_the_names_and_the_match_pages_link_to_it(
-    tmp_path, page
-):
+def test_the_staff_see_the_chart_and_the_match_pages_link_to_it(tmp_path, page):
     with serve(tmp_path) as live:
         play(live)
         page.goto(chart_url(live, "staff"))
         page.wait_for_selector("svg")
         page.locator(".hit").nth(1).click()  # the first point of ours, on top of theirs
-        assert "Anna" in page.locator(".tip").inner_text()
+        assert page.locator(".tip").inner_text().startswith("1–0")
         page.goto(f"{live.base}/{live.tokens['family']}/1")
         page.wait_for_selector("a.chart-link")
         page.click("a.chart-link")

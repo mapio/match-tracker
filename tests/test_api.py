@@ -27,8 +27,8 @@ def log_of(tmp_path, n, *events):
     Store(tmp_path / "data").put("rho", n, Log(len(events) + 1, events))
 
 
-def at(seconds, set_, type_, team=None, player=None):
-    return Event(0, KICKOFF + timedelta(seconds=seconds), set_, type_, team, player)
+def at(seconds, set_, type_, team=None):
+    return Event(0, KICKOFF + timedelta(seconds=seconds), set_, type_, team)
 
 
 PLAYED = tuple(
@@ -36,7 +36,7 @@ PLAYED = tuple(
     for i, event in enumerate(
         (
             at(0, 1, "set_start"),
-            at(10, 1, "point", "us", "anna"),
+            at(10, 1, "point", "us"),
             at(20, 1, "point", "them"),
             at(30, 1, "point", "us"),
             at(40, 1, "timeout", "them"),
@@ -98,7 +98,7 @@ def test_the_state_of_a_match_for_staff(tmp_path):
         "editable": True,
     }
     assert body["rules"]["best_of"] == 5
-    assert body["players"] == {"anna": "Anna", "bea": "Bea"}
+    assert "players" not in body
     assert body["current"] == 1 and body["sets_won"] == {"us": 0, "them": 0}
     assert body["sets"] == [
         {
@@ -118,37 +118,15 @@ def test_the_state_of_a_match_for_staff(tmp_path):
         "set": 1,
         "type": "point",
         "team": "us",
-        "player": "anna",
     }
-    assert "feed" not in body
 
 
-def test_the_family_state_has_no_events_and_a_feed_of_the_current_set(tmp_path):
+def test_the_family_state_has_no_events_no_feed_and_no_names(tmp_path):
     log_of(tmp_path, 1, *PLAYED)
     client, tokens = make_client(tmp_path)
     body = client.get(f"/api/{tokens['family']}/1").json()
     assert body["role"] == "family" and "events" not in body
-    assert body["players"] == {"anna": "Anna", "bea": "Bea"}
-    assert body["feed"] == [
-        {
-            "t": "2026-10-10T13:00:30.000Z",
-            "team": "us",
-            "player": None,
-            "score": {"us": 2, "them": 1},
-        },
-        {
-            "t": "2026-10-10T13:00:20.000Z",
-            "team": "them",
-            "player": None,
-            "score": {"us": 1, "them": 1},
-        },
-        {
-            "t": "2026-10-10T13:00:10.000Z",
-            "team": "us",
-            "player": "anna",
-            "score": {"us": 1, "them": 0},
-        },
-    ]
+    assert "players" not in body and "feed" not in body
 
 
 def test_the_family_timeline_has_the_points_and_timeouts_of_every_set(tmp_path):
@@ -156,35 +134,12 @@ def test_the_family_timeline_has_the_points_and_timeouts_of_every_set(tmp_path):
     client, tokens = make_client(tmp_path)
     body = client.get(f"/api/{tokens['family']}/1").json()
     assert body["timeline"] == [
-        {
-            "set": 1,
-            "t": "2026-10-10T13:00:10.000Z",
-            "type": "point",
-            "team": "us",
-            "player": "anna",
-        },
+        {"set": 1, "t": "2026-10-10T13:00:10.000Z", "type": "point", "team": "us"},
         {"set": 1, "t": "2026-10-10T13:00:20.000Z", "type": "point", "team": "them"},
         {"set": 1, "t": "2026-10-10T13:00:30.000Z", "type": "point", "team": "us"},
         {"set": 1, "t": "2026-10-10T13:00:40.000Z", "type": "timeout", "team": "them"},
     ]
     assert "timeline" not in client.get(f"/api/{tokens['staff']}/1").json()
-
-
-def test_the_timeline_names_no_scorer_unless_the_team_shows_them(tmp_path):
-    log_of(tmp_path, 1, *PLAYED)
-    client, tokens = make_client(tmp_path, show_scorers=False)
-    timeline = client.get(f"/api/{tokens['family']}/1").json()["timeline"]
-    assert len(timeline) == 4 and all("player" not in item for item in timeline)
-
-
-def test_scorers_stay_hidden_from_families_unless_the_team_shows_them(tmp_path):
-    log_of(tmp_path, 1, *PLAYED)
-    client, tokens = make_client(tmp_path, show_scorers=False)
-    family = client.get(f"/api/{tokens['family']}/1").json()
-    assert "players" not in family and "feed" not in family
-    assert "events" not in family
-    staff = client.get(f"/api/{tokens['staff']}/1").json()
-    assert staff["players"] and staff["events"]
 
 
 def test_after_the_lock_the_match_is_over_and_not_editable(tmp_path):

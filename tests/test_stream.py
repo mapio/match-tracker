@@ -138,15 +138,14 @@ def test_a_write_reaches_every_watcher_of_the_match(tmp_path):
         for reader in (one, two, staff):
             reader.next_state()
         live.post(set=1, type="set_start")
-        live.post(set=1, type="point", team="us", player="anna")
+        live.post(set=1, type="point", team="us")
         states = [
             reader.next_state(lambda s: s["sets"] and s["sets"][0]["score"]["us"] == 1)
             for reader in (one, two, staff)
         ]
         for state in states:
             assert state["sets"][0]["score"] == {"us": 1, "them": 0}
-        assert [f["player"] for f in states[0]["feed"]] == ["anna"]
-        assert "feed" not in states[2] and states[2]["events"][-1]["id"] == 2
+        assert "events" not in states[0] and states[2]["events"][-1]["id"] == 2
 
 
 def test_quick_writes_end_with_the_latest_state(tmp_path):

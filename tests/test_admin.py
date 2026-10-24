@@ -1,5 +1,5 @@
 """The admin, one token for the whole server, creates teams and hands out the
-links; the coach of a team then sets it up (name, colors, rules, roster)."""
+links; the coach of a team then sets it up (name, colors, rules)."""
 
 import copy
 import json
@@ -11,7 +11,7 @@ from test_teams import VALID
 
 INFO = {
     key: copy.deepcopy(VALID[key])
-    for key in ("name", "lang", "timezone", "colors", "show_scorers", "rules", "roster")
+    for key in ("name", "lang", "timezone", "colors", "rules")
 }
 
 
@@ -119,7 +119,8 @@ def test_the_coach_sees_the_team_as_the_form_edits_it(tmp_path):
     body = client.get(team_url(teams)).json()
     assert body["name"] == "Volley Test" and body["contact"] == "https://wa.me/39"
     assert body["languages"] == ["en", "it"] and "season_editing" not in body
-    assert body["roster"] == VALID["roster"] and body["rules"] == VALID["rules"]
+    assert body["rules"] == VALID["rules"]
+    assert "roster" not in body and "show_scorers" not in body
     for role in ("staff", "family"):
         token = teams.tokens["rho"][role]
         assert client.get(f"/api/{token}/team").status_code == 404
@@ -150,38 +151,19 @@ def test_the_contact_is_set_and_cleared(tmp_path):
     assert "contact" not in file_of(tmp_path)
 
 
-def test_a_player_taken_off_the_roster_leaves_the_call_ups(tmp_path):
+def test_a_roster_or_show_scorers_in_the_form_is_refused(tmp_path):
     client, teams = make(tmp_path)
-    roster = {"anna": "Anna", "chiara": "Chiara"}  # bea goes
-    assert client.put(team_url(teams), json=info(roster=roster)).status_code == 200
-    saved = file_of(tmp_path)
-    assert saved["matches"][0]["players"] == ["anna"]
-    assert saved["roster"] == roster
-
-
-def test_a_player_in_a_log_cannot_be_taken_off(tmp_path):
-    client, teams = make(tmp_path)
-    log = tmp_path / "data" / "rho"
-    log.mkdir(parents=True)
-    event = {
-        "id": 1,
-        "t": "2026-10-10T13:00:00.000Z",
-        "set": 1,
-        "type": "point",
-        "team": "us",
-        "player": "bea",
-    }
-    (log / "1.json").write_text(json.dumps({"next_id": 2, "events": [event]}))
-    answer = client.put(team_url(teams), json=info(roster={"anna": "Anna"}))
-    assert answer.status_code == 422 and "bea" in answer.json()["detail"]
-    assert "bea" in file_of(tmp_path)["roster"]
+    before = (tmp_path / "teams" / "rho.json").read_text()
+    for extra in ({"roster": {"anna": "Anna"}}, {"show_scorers": True}):
+        answer = client.put(team_url(teams), json=info(**extra))
+        assert answer.status_code == 422 and next(iter(extra)) in answer.text
+    assert (tmp_path / "teams" / "rho.json").read_text() == before
 
 
 @pytest.mark.parametrize(
     "change, text",
     [
         ({"timezone": "Mars/Olympus"}, "timezone"),
-        ({"roster": {}}, "roster"),
         ({"lang": "xx"}, "lang"),
         ({"rules": {**VALID["rules"], "best_of": 4}}, "best_of"),
         ({"contact": "not a url"}, "contact"),
@@ -218,12 +200,11 @@ def test_the_admin_lists_the_teams_and_creates_one_on_the_page(tmp_path, page, l
     page.wait_for_selector("input[type=color]")
     page.locator("label:has-text('Identificativo') input").fill("tau")
     page.locator("label:has-text('Nome') input").first.fill("Tau team")
-    page.click("button.add")
-    page.locator(".player input").last.fill("Ada Östra")
+    assert page.locator("input[type=text]").count() == 4  # no roster rows
     page.click("button.save")
     page.wait_for_selector(".card:has-text('Tau team')")
     created = json.loads((live.team_file.parent / "tau.json").read_text())
-    assert created["name"] == "Tau team" and created["roster"] == {"1": "Ada Östra"}
+    assert created["name"] == "Tau team" and "roster" not in created
     assert created["matches"] == [] and created["rules"]["best_of"] == 5
     assert page.errors == []
 
@@ -233,8 +214,6 @@ def test_a_bad_id_shows_the_reason_on_the_page(tmp_path, page, live):
     page.wait_for_selector("input[type=color]")
     page.locator("label:has-text('Identificativo') input").fill("Bad Id")
     page.locator("label:has-text('Nome') input").first.fill("X")
-    page.click("button.add")
-    page.locator(".player input").last.fill("Ada")
     page.click("button.save")
     page.wait_for_selector(".notice.error:has-text('team id')")
     assert page.errors == []
@@ -242,16 +221,14 @@ def test_a_bad_id_shows_the_reason_on_the_page(tmp_path, page, live):
 
 def test_the_coach_changes_the_team_from_the_start_page(tmp_path, page, live):
     page.goto(f"{live.base}/{live.teams.coach_token('rho')}")
-    page.wait_for_selector(".card")
+    page.wait_for_selector("text=Impostazioni squadra")
     page.click("text=Impostazioni squadra")
     page.wait_for_selector("input[type=color]")
     page.locator("label:has-text('Nome') input").first.fill("Edited")
-    page.click("button.add")
-    page.locator(".player input").last.fill("Dora Östra")
     page.click("button.save")
     page.wait_for_selector(".notice:has-text('Salvato')")
     saved = json.loads(live.team_file.read_text())
-    assert saved["name"] == "Edited" and saved["roster"]["1"] == "Dora Östra"
+    assert saved["name"] == "Edited" and "roster" not in saved
     page.locator("label:has-text('Fuso orario') input").fill("Mars/Olympus")
     page.click("button.save")
     page.wait_for_selector(".notice.error:has-text('timezone')")

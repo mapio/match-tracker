@@ -20,7 +20,6 @@ VALID = {
     "lang": "it",
     "timezone": "Europe/Rome",
     "colors": {"us": "#111111", "them": "#eeeeee"},
-    "show_scorers": True,
     "rules": {
         "best_of": 5,
         "points": 25,
@@ -28,21 +27,18 @@ VALID = {
         "win_by": 2,
         "timeouts_per_set": 2,
     },
-    "roster": {"anna": "Anna", "bea": "Bea", "chiara": "Chiara"},
     "matches": [
         {
             "n": 1,
             "date": "2026-10-10T15:00",
             "opponent": "Opponent",
             "location": {"name": "Gym", "address": "Via Roma 1, Milano"},
-            "players": ["anna", "bea"],
         },
         {
             "n": 2,
             "date": "2026-10-17T15:00",
             "opponent": "Other",
             "location": {"name": "Hall"},
-            "players": ["bea", "chiara"],
             "rules": {"best_of": 3},
         },
     ],
@@ -68,7 +64,6 @@ def test_valid_file_parses_into_objects():
     team = Team.parse("test", VALID)
     assert team.name == "Volley Test"
     assert str(team.timezone) == "Europe/Rome"
-    assert team.match(1).players == ("anna", "bea")
     assert team.match(1).rules.best_of == 5
     assert team.match(2).rules.best_of == 3  # override merged into the team rules
     assert team.match(2).rules.points == 25
@@ -82,10 +77,10 @@ def test_valid_file_parses_into_objects():
         (changed(extra=1), "extra: unknown key"),
         ({k: v for k, v in VALID.items() if k != "timezone"}, "missing 'timezone'"),
         (changed(timezone="Mars/Olympus"), "timezone: unknown zone"),
-        (changed(show_scorers="yes"), "show_scorers: expected true or false"),
+        (changed(show_scorers=True), "show_scorers: the app holds no name"),
+        (changed(roster={"anna": "Anna"}), "roster: the app holds no name"),
+        (changed(roster={}), "roster: the app holds no name"),
         (changed(colors={"us": "red"}), "colors: missing 'them'"),
-        (changed(roster={}), "roster: no players"),
-        (changed(roster={"Anna": "Anna"}), "roster.Anna: use lowercase"),
         (
             changed(rules={**VALID["rules"], "best_of": 4}),
             "rules.best_of: must be odd",
@@ -117,9 +112,8 @@ def match_with(**fields):
     [
         (match_with(date="10/10/2026"), r"matches\[0\].date: expected"),
         (match_with(date="2026-13-10T15:00"), r"matches\[0\].date: expected"),
-        (match_with(players=["anna", "zoe"]), r"matches\[0\].players\[1\]: 'zoe'"),
-        (match_with(players=["anna", "anna"]), r"matches\[0\].players\[1\]: 'anna' is"),
-        (match_with(players="anna"), r"matches\[0\].players: expected a list"),
+        (match_with(players=["anna"]), r"matches\[0\].players: the app holds no name"),
+        (match_with(players=[]), r"matches\[0\].players: the app holds no name"),
         (match_with(n=0), r"matches\[0\].n: expected an integer >= 1"),
         (match_with(n=True), r"matches\[0\].n: expected an integer"),
         (match_with(n=2), "number 2 is used twice"),
@@ -239,17 +233,31 @@ def test_no_team_files_stops_the_start(folders):
         Teams(*folders)
 
 
-def test_a_changed_call_up_is_seen_by_the_next_lookup(folders):
+def test_a_changed_opponent_is_seen_by_the_next_lookup(folders):
     teams_dir, data_dir = folders
     path = teams_dir / "rho.json"
     write(path, VALID)
     teams = Teams(teams_dir, data_dir)
-    assert teams.team("rho").match(1).players == ("anna", "bea")
+    assert teams.team("rho").match(1).opponent == "Opponent"
     raw = copy.deepcopy(VALID)
-    raw["matches"][0]["players"] = ["anna", "bea", "chiara"]
+    raw["matches"][0]["opponent"] = "Changed"
     write(path, raw)
     bump_mtime(path)
-    assert teams.team("rho").match(1).players == ("anna", "bea", "chiara")
+    assert teams.team("rho").match(1).opponent == "Changed"
+
+
+def test_a_file_with_a_roster_is_refused_on_reload_and_at_start(folders, caplog):
+    teams_dir, data_dir = folders
+    path = teams_dir / "rho.json"
+    write(path, VALID)
+    teams = Teams(teams_dir, data_dir)
+    write(path, changed(roster={"anna": "Anna"}))
+    bump_mtime(path)
+    with caplog.at_level(logging.WARNING, logger="match-tracker"):
+        assert teams.team("rho").name == "Volley Test"
+    assert "roster: the app holds no name" in caplog.text
+    with pytest.raises(ConfigError, match="roster: the app holds no name"):
+        Teams(teams_dir, data_dir)
 
 
 def test_a_broken_file_keeps_the_old_one_and_logs_once(folders, caplog):
@@ -305,18 +313,19 @@ def test_a_file_dropping_a_played_match_is_refused(folders):
     assert teams.team("rho").match(1) is not None
 
 
-def test_a_file_dropping_a_player_in_a_log_is_refused(folders):
+def test_a_log_with_a_player_is_refused_at_start_and_on_reload(folders, caplog):
     teams_dir, data_dir = folders
     path = teams_dir / "rho.json"
     write(path, VALID)
-    write_log(data_dir, "rho", 1, [{"id": 1, "type": "point", "player": "bea"}])
     teams = Teams(teams_dir, data_dir)
-    raw = copy.deepcopy(VALID)
-    del raw["roster"]["bea"]
-    raw["matches"] = [raw["matches"][0] | {"players": ["anna"]}]
-    write(path, raw)
+    write_log(data_dir, "rho", 1, [{"id": 4, "type": "point", "player": "bea"}])
+    with pytest.raises(ConfigError, match="event 4 has a 'player'"):
+        Teams(teams_dir, data_dir)
+    write(path, changed(name="Renamed"))
     bump_mtime(path)
-    assert "bea" in teams.team("rho").roster
+    with caplog.at_level(logging.WARNING, logger="match-tracker"):
+        assert teams.team("rho").name == "Volley Test"
+    assert "event 4 has a 'player'" in caplog.text
 
 
 def test_a_start_with_a_log_the_file_contradicts_is_refused(folders):

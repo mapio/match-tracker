@@ -30,8 +30,8 @@ def test_the_match_page_follows_the_staff_without_a_reload(tmp_path, page):
         page.wait_for_selector(".box")
         assert page.inner_text(".box") == "Non ancora iniziata"  # the team's language
         live.post(set=1, type="set_start")
-        for player in ("anna", "bea"):
-            live.post(set=1, type="point", team="us", player=player)
+        for _ in range(2):
+            live.post(set=1, type="point", team="us")
         live.post(set=1, type="point", team="them")
         live.post(set=1, type="timeout", team="them")
         page.wait_for_function(
@@ -39,24 +39,11 @@ def test_the_match_page_follows_the_staff_without_a_reload(tmp_path, page):
         )
         assert "IN DIRETTA" in page.inner_text("h1")
         assert page.inner_text(".timeouts").split() == ["○○", "●○"]
-        feed = [
-            line.strip() for line in page.locator("ul.feed li .who").all_inner_texts()
-        ]
-        assert feed == ["Opponent", "Volley Test (Bea)", "Volley Test (Anna)"]
-        # each line says when the point was added, as hours, minutes and seconds
-        pills = page.locator("ul.feed li .pill").all_inner_texts()
-        assert len(pills) == 3 and all(
-            re.fullmatch(r"\d\d[:.]\d\d[:.]\d\d", p.strip()) for p in pills
-        )
-        # each line in the color of the team that scored (#111111 and #eeeeee)
-        colors = page.locator("ul.feed li").evaluate_all(
-            "lines => lines.map(line => getComputedStyle(line).color)"
-        )
-        assert colors == ["rgb(238, 238, 238)", "rgb(17, 17, 17)", "rgb(17, 17, 17)"]
+        assert page.locator("ul.feed").count() == 0  # no list of the latest points
     assert page.errors == []
 
 
-def test_a_closed_set_goes_to_the_table_and_the_feed_is_capped(tmp_path, page):
+def test_a_closed_set_goes_to_the_table(tmp_path, page):
     with serve(tmp_path) as live:
         page.goto(f"{live.base}/{live.tokens['family']}/1")
         live.post(set=1, type="set_start")
@@ -70,7 +57,6 @@ def test_a_closed_set_goes_to_the_table_and_the_feed_is_capped(tmp_path, page):
         )
         assert page.locator("table tr").count() == 2  # header and set 1
         assert page.locator("table td.win").inner_text() == "25"
-        assert page.locator("ul.feed li").count() == 10
         assert "Set 2" in page.inner_text(".sub")
         # when a set began and ended: under its number once closed, "since" while live
         span = page.locator("table td .pill").inner_text()
@@ -81,10 +67,10 @@ def test_a_closed_set_goes_to_the_table_and_the_feed_is_capped(tmp_path, page):
 def test_the_language_can_be_overridden(tmp_path, page):
     with serve(tmp_path) as live:
         live.post(set=1, type="set_start")
-        live.post(set=1, type="point", team="us", player="anna")
+        live.post(set=1, type="point", team="us")
         page.goto(f"{live.base}/{live.tokens['family']}/1?lang=en")
-        page.wait_for_selector("ul.feed")
-        assert page.inner_text("h2") == "Last points"
+        page.wait_for_selector("h1 .live")
+        assert page.inner_text("h1 .live") == "LIVE"
         assert page.evaluate("document.documentElement.lang") == "en"
 
 
@@ -158,19 +144,6 @@ def test_staff_pages_are_framed_and_titled_and_public_pages_are_not(tmp_path, pa
                 assert page.title().startswith("Staff · ") == framed
 
 
-def test_a_point_without_a_scorer_shows_only_the_team(tmp_path, page):
-    with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
-        live.post(set=1, type="point", team="us")
-        live.post(set=1, type="point", team="us", player="anna")
-        page.goto(f"{live.base}/{live.tokens['family']}/1")
-        page.wait_for_selector("ul.feed li")
-        feed = [
-            line.strip() for line in page.locator("ul.feed li .who").all_inner_texts()
-        ]
-        assert feed == ["Volley Test (Anna)", "Volley Test"]
-
-
 def test_the_list_shows_the_live_score(tmp_path, page):
     with serve(tmp_path) as live:
         live.post(set=1, type="set_start")
@@ -194,26 +167,9 @@ def test_the_family_page_follows_the_match_even_if_the_stream_is_held_up(
         page.route("**/stream", lambda route: route.abort())
         page.goto(f"{live.base}/{live.tokens['family']}/1?poll=1")
         page.wait_for_selector(".big")
-        live.post(set=1, type="point", team="us", player="anna")
-        page.wait_for_selector("ul.feed li", timeout=5000)
-        assert (
-            page.locator("ul.feed li .who").inner_text().strip() == "Volley Test (Anna)"
-        )
-    assert page.errors == []
-
-
-def test_the_latest_points_go_when_the_set_and_the_match_are_closed(tmp_path, page):
-    with serve(tmp_path) as live:
-        live.post(set=1, type="set_start")
-        live.post(set=1, type="point", team="us", player="anna")
-        page.goto(f"{live.base}/{live.tokens['family']}/1")
-        page.wait_for_selector("ul.feed li")
-        live.post(set=1, type="set_end")  # the set is closed, the match goes on
-        page.wait_for_function("!document.querySelector('ul.feed')")
-        live.post(set=1, type="match_end")
+        live.post(set=1, type="point", team="us")
         page.wait_for_function(
-            "document.querySelector('.sub')?.innerText.includes('Terminata')"
+            "document.querySelector('.big')?.innerText.includes('1 – 0')",
+            timeout=5000,
         )
-        assert page.locator("ul.feed").count() == 0
-        assert page.locator("h2", has_text="Ultimi punti").count() == 0
     assert page.errors == []

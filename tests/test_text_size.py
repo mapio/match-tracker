@@ -13,7 +13,7 @@ SCALES = (100, 150, 200)
 def play(live):
     """Two closed sets and a third in play, so every part of the pages is there."""
     live.post(set=1, type="set_start")
-    live.post(set=1, type="point", team="us", player="anna")
+    live.post(set=1, type="point", team="us")
     live.post(set=1, type="set_end")
     live.post(set=2, type="set_start")
     live.post(set=2, type="point", team="them")
@@ -30,7 +30,6 @@ def paths(live):
         f"/{family}/1",
         f"/{staff}",
         f"/{staff}/1",
-        f"/{staff}/1/players",
         f"/{family}/1/chart",
     ]
 

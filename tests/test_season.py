@@ -74,7 +74,6 @@ def test_the_coach_token_finds_its_team_and_nothing_else_does(tmp_path):
     ):
         assert client.get(f"/api/{other}/season").status_code == 404
         assert client.get(f"/api/{other}/team").status_code == 404
-        assert "callup_open" not in client.get(f"/api/{other}").text
     client, _ = make(tmp_path / "plain", salt="")
     assert client.get("/api/zzzzzzzzzz").status_code == 404  # no salt, no token
 
@@ -85,12 +84,11 @@ def test_unknown_coach_tokens_count_against_the_limit(tmp_path):
     assert codes == [404] * 10 + [429]
 
 
-def test_the_start_page_lists_the_matches_with_their_call_ups(tmp_path):
-    client, teams = make(tmp_path, now=KICKOFF - timedelta(minutes=20))  # past 30
+def test_the_start_page_lists_the_matches_by_date(tmp_path):
+    client, teams = make(tmp_path)
     body = client.get(f"/api/{teams.coach_token('rho')}").json()
     assert [m["opponent"] for m in body["matches"]] == ["Opponent", "Other"]
-    assert [m["called"] for m in body["matches"]] == [2, 2]
-    assert [m["callup_open"] for m in body["matches"]] == [False, True]
+    assert all(set(m) == {"n", "date", "opponent"} for m in body["matches"])
 
 
 def test_the_season_lists_by_date_what_is_closed_and_what_has_a_record(tmp_path):
@@ -102,9 +100,7 @@ def test_the_season_lists_by_date_what_is_closed_and_what_has_a_record(tmp_path)
     assert (second["closed"], second["has_log"]) == (False, False)
 
 
-def test_a_match_is_changed_added_and_removed_keeping_the_players_and_the_rules(
-    tmp_path,
-):
+def test_a_match_is_changed_added_and_removed_keeping_the_rules(tmp_path):
     client, teams = make(tmp_path)
     items = [sent(m) for m in season(client, teams)]
     items[0]["date"] = "2026-10-11T16:00"
@@ -119,9 +115,9 @@ def test_a_match_is_changed_added_and_removed_keeping_the_players_and_the_rules(
     assert answer.status_code == 200
     saved = saved_matches(tmp_path)
     assert [m["n"] for m in saved] == [1, 3]  # the new one takes the next number
-    assert saved[0]["players"] == ["anna", "bea"] and saved[0]["opponent"] == "Renamed"
+    assert saved[0]["opponent"] == "Renamed"
     assert saved[0]["location"] == {"name": "New gym"}
-    assert saved[1]["players"] == [] and saved[1]["date"] == "2027-01-09T18:00"
+    assert saved[1]["date"] == "2027-01-09T18:00" and "players" not in saved[1]
     assert [m["opponent"] for m in answer.json()["matches"]] == ["Renamed", "Brand new"]
     assert (tmp_path / "teams" / "rho.json.bak").exists()
 
@@ -244,12 +240,13 @@ def test_a_team_file_cannot_carry_the_old_season_switch():
 def test_the_pages_are_served_to_the_coach_only(tmp_path):
     client, teams = make(tmp_path)
     token = teams.coach_token("rho")
-    for path in ("", "/team", "/season", "/1/players"):
+    for path in ("", "/team", "/season"):
         page = client.get(f"/{token}{path}")
         assert page.status_code == 200, path
+    assert client.get(f"/{token}/1/players").status_code == 404  # no call-up page
     assert "coach.js" in client.get(f"/{token}").text
     assert "season.js" in client.get(f"/{token}/season").text
-    for path in ("", "/season", "/1/players"):
+    for path in ("", "/season"):
         assert client.get(f"/zzzzzzzzzz{path}").status_code == 404
 
 
@@ -332,11 +329,6 @@ def test_the_editing_pages_use_the_width_of_a_tablet(tmp_path, page, live):
         round(s.bounding_box()["x"]) for s in page.locator(".columns > section").all()
     }
     assert len(xs) == 2  # the team and its rules, side by side
-    columns = page.locator(".columns").bounding_box()
-    roster = page.locator(".roster").bounding_box()
-    assert roster["y"] >= columns["y"] + columns["height"]  # the players below them
-    rows = {round(r.bounding_box()["x"]) for r in page.locator(".player").all()}
-    assert len(rows) == 2  # in two columns
     assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
     # add and save are one size
     page.goto(f"{live.base}/{coach}/season")

@@ -13,14 +13,12 @@ from match_tracker.rules import (
     delete,
     derive,
     reopen,
-    set_player,
     set_timeout_team,
 )
 from match_tracker.teams import Rules
 
 ROME = ZoneInfo("Europe/Rome")
 RULES = Rules(best_of=5, points=25, last_set_points=15, win_by=2, timeouts_per_set=2)
-PLAYERS = {"anna", "bea"}
 # 15:00 in Rome on 10 October is 13:00 UTC
 WINDOW = Window.for_match(datetime(2026, 10, 10, 15, 0), ROME)
 NOW = datetime(2026, 10, 10, 13, 0, tzinfo=UTC)
@@ -28,12 +26,10 @@ NOW = datetime(2026, 10, 10, 13, 0, tzinfo=UTC)
 
 def apply(events, draft, now=NOW, rules=RULES):
     """The log after a request, as the server would append it."""
-    for added in check(rules, WINDOW, PLAYERS, events, draft, now):
+    for added in check(rules, WINDOW, events, draft, now):
         events = (
             *events,
-            Event(
-                len(events) + 1, now, added.set, added.type, added.team, added.player
-            ),
+            Event(len(events) + 1, now, added.set, added.type, added.team),
         )
     return events
 
@@ -90,12 +86,9 @@ def test_window_spans_a_clock_change_in_real_time():
 def test_a_write_outside_the_window_is_refused(offset, expected):
     now = NOW + offset
     if expected is None:
-        assert check(RULES, WINDOW, PLAYERS, (), Draft(1, "set_start"), now)
+        assert check(RULES, WINDOW, (), Draft(1, "set_start"), now)
     else:
-        assert (
-            code(check, RULES, WINDOW, PLAYERS, (), Draft(1, "set_start"), now)
-            == expected
-        )
+        assert code(check, RULES, WINDOW, (), Draft(1, "set_start"), now) == expected
 
 
 def test_a_fresh_match_is_upcoming_and_editable_in_the_window():
@@ -108,7 +101,7 @@ def test_a_fresh_match_is_upcoming_and_editable_in_the_window():
 def test_scores_timeouts_and_current_set_come_from_the_log():
     events = play(
         Draft(1, "set_start"),
-        Draft(1, "point", "us", "anna"),
+        Draft(1, "point", "us"),
         Draft(1, "point", "them"),
         Draft(1, "point", "us"),
         Draft(1, "timeout", "them"),
@@ -202,40 +195,38 @@ def test_a_changed_date_moves_the_window_and_unlocks_the_match():
         (Draft(0, "point", "us"), "invalid_event"),
         (Draft(1, "flip", "us"), "invalid_event"),
         (Draft(1, "point"), "invalid_event"),
-        (Draft(1, "point", "them", "anna"), "invalid_event"),
-        (Draft(1, "point", "us", "zoe"), "unknown_player"),
         (Draft(1, "set_end", "us"), "invalid_event"),
         (Draft(3, "point", "us"), "set_not_started"),
     ],
 )
 def test_requests_that_break_a_rule(draft, expected):
     events = play(Draft(1, "set_start"))
-    assert code(check, RULES, WINDOW, PLAYERS, events, draft, NOW) == expected
+    assert code(check, RULES, WINDOW, events, draft, NOW) == expected
 
 
 def test_nothing_before_the_set_starts_and_nothing_in_a_closed_set():
-    assert code(check, RULES, WINDOW, PLAYERS, (), Draft(1, "point", "us"), NOW) == (
+    assert code(check, RULES, WINDOW, (), Draft(1, "point", "us"), NOW) == (
         "set_not_started"
     )
     events = play(Draft(1, "set_start"), Draft(1, "set_end"))
-    assert code(
-        check, RULES, WINDOW, PLAYERS, events, Draft(1, "point", "us"), NOW
-    ) == ("set_closed")
-    assert code(
-        check, RULES, WINDOW, PLAYERS, events, Draft(1, "timeout", "us"), NOW
-    ) == ("set_closed")
+    assert code(check, RULES, WINDOW, events, Draft(1, "point", "us"), NOW) == (
+        "set_closed"
+    )
+    assert code(check, RULES, WINDOW, events, Draft(1, "timeout", "us"), NOW) == (
+        "set_closed"
+    )
 
 
 def test_the_timeouts_of_a_team_are_limited_per_set():
     events = play(
         Draft(1, "set_start"), Draft(1, "timeout", "us"), Draft(1, "timeout", "us")
     )
-    assert code(
-        check, RULES, WINDOW, PLAYERS, events, Draft(1, "timeout", "us"), NOW
-    ) == ("timeout_limit")
-    assert check(RULES, WINDOW, PLAYERS, events, Draft(1, "timeout", "them"), NOW)
+    assert code(check, RULES, WINDOW, events, Draft(1, "timeout", "us"), NOW) == (
+        "timeout_limit"
+    )
+    assert check(RULES, WINDOW, events, Draft(1, "timeout", "them"), NOW)
     next_set = apply(apply(events, Draft(1, "set_end")), Draft(2, "set_start"))
-    assert check(RULES, WINDOW, PLAYERS, next_set, Draft(2, "timeout", "us"), NOW)
+    assert check(RULES, WINDOW, next_set, Draft(2, "timeout", "us"), NOW)
 
 
 def test_a_set_starts_only_after_the_previous_one_is_closed():
@@ -247,7 +238,7 @@ def test_nothing_is_accepted_once_the_match_is_over():
     events = ()
     for n in (1, 2, 3):
         events = play_set(events, n, 25, 10)
-    assert code(check, RULES, WINDOW, PLAYERS, events, Draft(4, "set_start"), NOW) == (
+    assert code(check, RULES, WINDOW, events, Draft(4, "set_start"), NOW) == (
         "match_over"
     )
 
@@ -257,10 +248,10 @@ def test_match_end_closes_an_open_set_and_ends_the_match():
     assert [e.type for e in events[-2:]] == ["set_end", "match_end"]
     state = state_of(events)
     assert (state.status, state.current) == ("over", 1)
-    assert code(
-        check, RULES, WINDOW, PLAYERS, events, Draft(1, "point", "us"), NOW
-    ) == ("match_over")
-    assert code(check, RULES, WINDOW, PLAYERS, (), Draft(1, "match_end"), NOW) == (
+    assert code(check, RULES, WINDOW, events, Draft(1, "point", "us"), NOW) == (
+        "match_over"
+    )
+    assert code(check, RULES, WINDOW, (), Draft(1, "match_end"), NOW) == (
         "set_not_started"
     )
 
@@ -280,23 +271,6 @@ def test_deleting_a_point_or_a_timeout_but_never_a_start_or_a_stop():
     closed = apply(events, Draft(1, "set_end"))
     assert code(delete, WINDOW, closed, 4, NOW) == "protected_event"
     assert code(delete, WINDOW, events, 99, NOW) == "invalid_event"
-
-
-def test_fixes_work_on_a_closed_set():
-    events = play_set((), 1, 25, 23)
-    anna = set_player(WINDOW, PLAYERS, events, 2, "anna", NOW)
-    assert anna[1].player == "anna"
-    assert set_player(WINDOW, PLAYERS, anna, 2, None, NOW)[1].player is None
-
-
-def test_attributing_a_point():
-    events = play(
-        Draft(1, "set_start"), Draft(1, "point", "us"), Draft(1, "point", "them")
-    )
-    assert set_player(WINDOW, PLAYERS, events, 2, "bea", NOW)[1].player == "bea"
-    assert code(set_player, WINDOW, PLAYERS, events, 2, "zoe", NOW) == "unknown_player"
-    assert code(set_player, WINDOW, PLAYERS, events, 3, "bea", NOW) == "invalid_event"
-    assert code(set_player, WINDOW, PLAYERS, events, 1, "bea", NOW) == "invalid_event"
 
 
 def test_giving_a_timeout_to_the_other_team_unless_it_has_none_left():
@@ -348,6 +322,5 @@ def test_every_fix_is_refused_outside_the_window():
         (WINDOW.locks_at, "locked"),
     ]:
         assert code(delete, WINDOW, events, 2, now) == expected
-        assert code(set_player, WINDOW, PLAYERS, events, 2, "anna", now) == expected
         assert code(set_timeout_team, RULES, WINDOW, events, 2, "us", now) == expected
         assert code(reopen, WINDOW, events, 1, now) == expected

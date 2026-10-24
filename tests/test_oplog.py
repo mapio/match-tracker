@@ -73,7 +73,7 @@ def test_an_unhandled_error_is_logged_with_its_traceback_but_no_token(
     answer = client.get(f"/api/{token}")
     assert answer.status_code == 500
     assert answer.json()["error"] == "server_error"
-    page = client.get(f"/{token}/1/players")  # not a coach: an ordinary 404
+    page = client.get(f"/{token}/99")  # no such match: an ordinary 404
     assert page.status_code == 404
     handler.flush()
     text = (tmp_path / "logs" / "app.log").read_text()

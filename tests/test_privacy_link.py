@@ -47,7 +47,6 @@ def test_the_pages_that_edit_do_not_have_it(page, live):
         f"/{coach}",
         f"/{coach}/team",
         f"/{coach}/season",
-        f"/{coach}/2/players",
         f"/{admin}",
         f"/{admin}/new",
     ):

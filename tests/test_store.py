@@ -1,13 +1,15 @@
 import json
 from datetime import UTC, datetime
 
+import pytest
+
 from match_tracker.rules import Event
 from match_tracker.store import Log, Store, event_to_json, format_time
 
 T = datetime(2026, 10, 10, 13, 0, 5, 123000, tzinfo=UTC)
 EVENTS = (
     Event(1, T, 1, "set_start"),
-    Event(2, T, 1, "point", "us", "anna"),
+    Event(2, T, 1, "point", "us"),
     Event(3, T, 1, "point", "them"),
 )
 
@@ -23,7 +25,37 @@ def test_absent_fields_are_left_out_of_an_event():
         "set": 1,
         "type": "set_start",
     }
-    assert event_to_json(EVENTS[1])["player"] == "anna"
+    assert event_to_json(EVENTS[1]) == {
+        "id": 2,
+        "t": "2026-10-10T13:00:05.123Z",
+        "set": 1,
+        "type": "point",
+        "team": "us",
+    }
+
+
+def test_a_stored_event_with_a_player_is_not_read(tmp_path):
+    path = tmp_path / "rho" / "3.json"
+    path.parent.mkdir()
+    path.write_text(
+        json.dumps(
+            {
+                "next_id": 2,
+                "events": [
+                    {
+                        "id": 1,
+                        "t": "2026-10-10T13:00:05.123Z",
+                        "set": 1,
+                        "type": "point",
+                        "team": "us",
+                        "player": "anna",
+                    }
+                ],
+            }
+        )
+    )
+    with pytest.raises(ValueError, match="'player'"):
+        Store(tmp_path).get("rho", 3)
 
 
 def test_a_match_without_a_file_has_an_empty_log(tmp_path):

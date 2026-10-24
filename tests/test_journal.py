@@ -29,8 +29,6 @@ def test_the_journal_replays_to_the_log_after_every_change(tmp_path):
         ("post", "/events", {"set": 1, "type": "point", "team": "us"}),
         ("post", "/events", {"set": 1, "type": "point", "team": "them"}),
         ("post", "/events", {"set": 1, "type": "timeout", "team": "us"}),
-        ("patch", "/events/2", {"player": "anna"}),
-        ("patch", "/events/2", {"player": "bea"}),
         ("patch", "/events/4", {"team": "them"}),
         ("delete", "/events/3", None),
         ("post", "/events", {"set": 1, "type": "point", "team": "us"}),
@@ -52,42 +50,46 @@ def test_a_deleted_event_and_a_fix_are_kept_whole(tmp_path):
     client, tokens = make_client(tmp_path)
     base = f"/api/{tokens['staff']}/1"
     client.post(f"{base}/events", json={"set": 1, "type": "set_start"})
-    client.post(f"{base}/events", json={"set": 1, "type": "point", "team": "us"})
-    client.patch(f"{base}/events/2", json={"player": "anna"})
+    client.post(f"{base}/events", json={"set": 1, "type": "timeout", "team": "us"})
+    client.patch(f"{base}/events/2", json={"team": "them"})
     client.delete(f"{base}/events/2")
     records = [json.loads(x) for x in journal_file(tmp_path).read_text().splitlines()]
     fix, drop = records[2], records[3]
     assert fix["who"] == "staff" and fix["op"] == "fix"
-    assert fix["changed"][0]["before"].get("player") is None
-    assert fix["changed"][0]["after"]["player"] == "anna"
-    assert drop["op"] == "delete" and drop["removed"][0]["player"] == "anna"
+    assert fix["changed"][0]["before"]["team"] == "us"
+    assert fix["changed"][0]["after"]["team"] == "them"
+    assert drop["op"] == "delete" and drop["removed"][0]["team"] == "them"
     assert (
         state_file(tmp_path)["events"]
         == journal.replay(journal_file(tmp_path))["events"]
     )
 
 
-def test_the_journal_is_private_and_holds_no_name(tmp_path):
+def test_the_journal_is_private(tmp_path):
     client, tokens = make_client(tmp_path)
     base = f"/api/{tokens['staff']}/1"
     client.post(f"{base}/events", json={"set": 1, "type": "set_start"})
     client.post(f"{base}/events", json={"set": 1, "type": "point", "team": "us"})
-    client.patch(f"{base}/events/2", json={"player": "anna"})
     path = journal_file(tmp_path)
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
-    assert "Anna" not in path.read_text()
+    assert "player" not in path.read_text()
 
 
 def test_the_team_journal_keeps_the_file_as_it_was(tmp_path):
-    client, teams = make(tmp_path, now=KICKOFF - timedelta(hours=2))
+    client, teams = make(tmp_path, now=KICKOFF - timedelta(days=3))
     before = json.loads((tmp_path / "teams" / "rho.json").read_text())
+    items = [
+        {k: m[k] for k in ("n", "date", "opponent", "location")}
+        for m in before["matches"]
+    ]
+    items[0]["opponent"] = "Renamed"
     answer = client.put(
-        f"/api/{teams.coach_token('rho')}/1/callup", json={"players": ["anna"]}
+        f"/api/{teams.coach_token('rho')}/season", json={"matches": items}
     )
     assert answer.status_code == 200, answer.text
     path = journal.path_of(tmp_path / "data", "rho", journal.TEAM)
     (record,) = [json.loads(x) for x in path.read_text().splitlines()]
-    assert record["who"] == "coach" and record["op"] == "callup"
+    assert record["who"] == "coach" and record["op"] == "season"
     assert record["before"] == before
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
 

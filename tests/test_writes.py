@@ -30,12 +30,12 @@ def test_a_set_at_deuce_closes_only_with_a_margin_of_two(match):
     client, staff, _ = match
     start(client, staff)
     for _ in range(24):
-        post(client, staff, set=1, type="point", team="us", player="anna")
+        post(client, staff, set=1, type="point", team="us")
         post(client, staff, set=1, type="point", team="them")
     open_ = post(client, staff, set=1, type="point", team="us").json()
     assert open_["sets"][0]["score"] == {"us": 25, "them": 24}
     assert not open_["sets"][0]["closed"]
-    closed = post(client, staff, set=1, type="point", team="us", player="bea").json()
+    closed = post(client, staff, set=1, type="point", team="us").json()
     assert closed["sets"][0]["closed"] and closed["sets"][0]["winner"] == "us"
     after = post(client, staff, set=1, type="point", team="us")
     refused(after, 409, "set_closed")
@@ -66,14 +66,16 @@ def test_events_are_stamped_with_the_server_time_and_saved(match, tmp_path):
             "type": "set_start",
         }
     ]
-    post(client, staff, set=1, type="point", team="us", player="anna")
-    assert [e.player for e in stored(tmp_path).events] == [None, "anna"]
+    post(client, staff, set=1, type="point", team="us")
+    assert [e.team for e in stored(tmp_path).events] == [None, "us"]
+    stored_json = (tmp_path / "data" / "rho" / "1.json").read_text()
+    assert "player" not in stored_json
 
 
 def test_a_restart_keeps_everything(match, tmp_path):
     client, staff, _ = match
     start(client, staff)
-    post(client, staff, set=1, type="point", team="us", player="anna")
+    post(client, staff, set=1, type="point", team="us")
     again, tokens = make_client(tmp_path)
     body = again.get(f"/api/{tokens['staff']}/1").json()
     assert body["sets"][0]["score"] == {"us": 1, "them": 0}
@@ -90,7 +92,7 @@ def test_a_family_token_cannot_write_and_gets_the_usual_404(match):
     start(client, staff)
     calls = [
         client.post(f"/api/{family}/1/events", json={"set": 1, "type": "set_end"}),
-        client.patch(f"/api/{family}/1/events/1", json={"player": None}),
+        client.patch(f"/api/{family}/1/events/1", json={"team": "us"}),
         client.delete(f"/api/{family}/1/events/1"),
         client.post(f"/api/{family}/1/sets/1/reopen"),
     ]
@@ -123,21 +125,20 @@ def test_deleting_a_point_is_an_undo(match):
     )
 
 
-def test_attributing_changing_and_clearing_a_scorer(match):
+def test_a_scorer_can_no_longer_be_sent_with_a_point_or_a_fix(match):
     client, staff, _ = match
     start(client, staff)
     post(client, staff, set=1, type="point", team="us")
-    url = f"/api/{staff}/1/events/2"
-    assert (
-        client.patch(url, json={"player": "bea"}).json()["events"][1]["player"] == "bea"
+    refused(
+        post(client, staff, set=1, type="point", team="us", player="anna"),
+        422,
+        "invalid_event",
     )
-    assert (
-        client.patch(url, json={"player": "anna"}).json()["events"][1]["player"]
-        == "anna"
+    refused(
+        client.patch(f"/api/{staff}/1/events/2", json={"player": "anna"}),
+        422,
+        "invalid_event",
     )
-    cleared = client.patch(url, json={"player": None}).json()
-    assert "player" not in cleared["events"][1]
-    assert cleared["events"][1]["t"] == "2026-10-10T13:00:00.000Z"
 
 
 def test_a_timeout_goes_to_the_other_team_unless_it_has_none_left(match):
@@ -180,11 +181,6 @@ def test_every_rule_code_comes_with_its_status(match, tmp_path):
         post(client, staff, set=1, type="timeout", team="us")
     refused(post(client, staff, set=1, type="timeout", team="us"), 409, "timeout_limit")
     refused(client.delete(f"{url}/events/1"), 409, "protected_event")
-    refused(
-        post(client, staff, set=1, type="point", team="us", player="zoe"),
-        422,
-        "unknown_player",
-    )
     post(client, staff, set=1, type="match_end")
     refused(post(client, staff, set=1, type="point", team="us"), 409, "match_over")
     client.post(f"{url}/sets/1/reopen")
@@ -218,6 +214,7 @@ def test_nothing_is_written_outside_the_window(tmp_path, offset, code):
         {"set": 0, "type": "set_start"},
         {"set": 1, "type": "point"},
         {"set": 1, "type": "point", "team": "them", "player": "anna"},
+        {"set": 1, "type": "point", "team": "us", "player": "anna"},
         {"set": 1, "type": "set_end", "team": "us"},
     ],
 )
@@ -240,25 +237,25 @@ def test_malformed_fixes_are_422(match):
         "invalid_event",
     )
     refused(client.patch(f"{url}/2", json={"team": "us"}), 422, "invalid_event")
-    refused(client.patch(f"{url}/abc", json={"player": None}), 422, "invalid_event")
-    refused(client.patch(f"{url}/99", json={"player": None}), 422, "invalid_event")
-    refused(client.patch(f"{url}/1", json={"player": "anna"}), 422, "invalid_event")
+    refused(client.patch(f"{url}/abc", json={"team": "us"}), 422, "invalid_event")
+    refused(client.patch(f"{url}/99", json={"team": "us"}), 422, "invalid_event")
+    refused(client.patch(f"{url}/1", json={"team": "us"}), 422, "invalid_event")
     refused(client.delete(f"{url}/99"), 422, "invalid_event")
     refused(client.post(f"/api/{staff}/1/sets/2/reopen"), 422, "invalid_event")
     refused(client.post(f"/api/{staff}/1/sets/x/reopen"), 422, "invalid_event")
 
 
-def test_each_applied_and_refused_write_is_logged_without_the_player(match, caplog):
+def test_each_applied_and_refused_write_is_logged(match, caplog):
     client, staff, _ = match
     with caplog.at_level(logging.INFO, logger="match-tracker"):
         start(client, staff)
-        post(client, staff, set=1, type="point", team="us", player="anna")
-        post(client, staff, set=1, type="point", team="us", player="zoe")
+        post(client, staff, set=1, type="point", team="us")
+        post(client, staff, set=3, type="point", team="us")
         client.delete(f"/api/{staff}/1/events/2")
     lines = [r.getMessage() for r in caplog.records]
     assert lines == [
         "rho/1 set_start set 1",
         "rho/1 point us set 1",
-        "rho/1 refused unknown_player",
+        "rho/1 refused set_not_started",
         "rho/1 delete event 2",
     ]

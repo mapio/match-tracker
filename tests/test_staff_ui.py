@@ -37,42 +37,36 @@ def test_a_set_is_played_from_the_bench(tmp_path, page):
         assert page.inner_text(".start") == "Inizia set 1"
         assert all(b.is_disabled() for b in page.locator(".team, .to").all())
         page.click(".start")
-        page.wait_for_selector(".players")
-        assert all(b.is_disabled() for b in page.locator(".players button").all())
-        page.click(".team.us")  # the point first, the scorer after
+        page.wait_for_selector(".team.us:not([disabled])")
+        page.click(".team.us")
         wait_score(page, "1 – 0")
-        assert page.inner_text(".ask") == "Punto 1 di Volley Test: chi ha segnato?"
-        page.click(".players button:has-text('Ann')")
-        page.wait_for_selector(".players button.on")
         page.click(".team.them")
         wait_score(page, "1 – 1")
-        assert all(b.is_disabled() for b in page.locator(".players button").all())
         page.click(".team.us")
         wait_score(page, "2 – 1")
-        page.click(".players button:has-text('Bea')")
-        page.wait_for_selector(".players button.on")
         events = state_of(live)["events"]
-        assert [(e["type"], e.get("team"), e.get("player")) for e in events] == [
-            ("set_start", None, None),
-            ("point", "us", "anna"),
-            ("point", "them", None),
-            ("point", "us", "bea"),
+        assert [(e["type"], e.get("team")) for e in events] == [
+            ("set_start", None),
+            ("point", "us"),
+            ("point", "them"),
+            ("point", "us"),
         ]
-        page.click(".players button.on")  # the same name again takes it off
-        page.wait_for_selector(".players button.on", state="detached")
-        assert state_of(live)["events"][-1].get("player") is None
+        assert all("player" not in e for e in events)
         page.click(".bar button.undo")
         wait_score(page, "1 – 1")
         assert len(state_of(live)["events"]) == 3
     assert page.errors == []
 
 
-def test_scorers_are_named_by_their_shortest_unique_start(tmp_path, page):
+def test_the_screen_has_no_scorer_buttons(tmp_path, page):
     with serve(tmp_path) as live:
         live.post(set=1, type="set_start")
+        live.post(set=1, type="point", team="us")
         open_staff(page, live)
-        labels = page.locator(".players button").all_inner_texts()
-        assert labels == ["Ann", "Bea"]
+        assert page.locator(".players, .ask").count() == 0
+        page.click(".bar button:has-text('⋯')")
+        point_row = page.locator(".menu li").nth(1)
+        assert point_row.locator("select").count() == 0
 
 
 def test_a_team_runs_out_of_timeouts_and_the_button_stops(tmp_path, page):
@@ -99,10 +93,6 @@ def test_the_winning_point_closes_the_set_and_waits_for_the_next(tmp_path, page)
         assert page.inner_text(".start") == "Inizia set 2"
         assert "Set 2" in page.inner_text(".score")
         assert "(1–0)" in page.inner_text(".score")
-        # the point that won the set can still be given its scorer
-        page.click(".players button:has-text('Ann')")
-        page.wait_for_selector(".players", state="detached")  # only the start is left
-        assert state_of(live)["events"][-2]["player"] == "anna"
         assert page.inner_text(".start") == "Inizia set 2"
         page.click(".bar button:has-text('‹')")  # back to set 1: closed, buttons off
         assert "✓" in page.inner_text(".score") and "past" in page.get_attribute(
@@ -140,7 +130,7 @@ def test_a_set_is_closed_by_hand_and_the_match_ended(tmp_path, page):
         assert page.locator(".extras button:has-text('Riapri')").is_enabled()
 
 
-def test_the_fix_list_attributes_moves_and_deletes(tmp_path, page):
+def test_the_fix_list_moves_and_deletes(tmp_path, page):
     with serve(tmp_path) as live:
         live.post(set=1, type="set_start")
         live.post(set=1, type="point", team="us")
@@ -152,12 +142,6 @@ def test_the_fix_list_attributes_moves_and_deletes(tmp_path, page):
         rows = page.locator(".menu li")
         assert rows.count() == 5
         assert rows.last.locator("button.drop").count() == 0  # set start: no delete
-        point_row = rows.nth(3)
-        point_row.locator("select").select_option("bea")
-        page.wait_for_function(
-            "[...document.querySelectorAll('.menu li')][3].querySelector('select').value === 'bea'"
-        )
-        assert state_of(live)["events"][1]["player"] == "bea"
         # the timeout of "us" cannot go to a team that has none left
         us_timeout = rows.nth(2).locator("select option[value=them]")
         assert us_timeout.is_disabled()
@@ -175,17 +159,13 @@ def test_outside_the_window_the_screen_is_read_only(tmp_path, page):
         page.clock.set_system_time(live.clock[0])
         open_staff(page, live)
         assert page.inner_text(".notice").startswith("Apre alle")
-        assert all(
-            b.is_disabled() for b in page.locator(".team, .to, .players button").all()
-        )
+        assert all(b.is_disabled() for b in page.locator(".team, .to").all())
         live.clock[0] = KICKOFF + timedelta(hours=25)
         page.clock.set_system_time(live.clock[0])
         page.reload()
         page.wait_for_selector(".notice")
         assert page.inner_text(".notice") == "Sola lettura"
-        assert all(
-            b.is_disabled() for b in page.locator(".team, .to, .players button").all()
-        )
+        assert all(b.is_disabled() for b in page.locator(".team, .to").all())
         page.click(".bar button:has-text('⋯')")  # the list can still be read
         assert page.locator(".menu li").count() == 1
 
@@ -209,14 +189,10 @@ def test_the_family_page_sees_what_the_staff_taps(tmp_path, browser):
         family.wait_for_selector(".box")
         open_staff(staff, live)
         staff.click(".start")
-        staff.wait_for_selector(".players")
+        staff.wait_for_selector(".team.us:not([disabled])")
         staff.click(".team.us")
-        staff.click(".players button:has-text('Ann')")
         family.wait_for_function(
             "document.querySelector('.big')?.innerText.includes('1 – 0')"
-        )
-        family.wait_for_function(
-            "document.querySelector('ul.feed')?.innerText.includes('Anna')"
         )
         family.close()
         staff.close()

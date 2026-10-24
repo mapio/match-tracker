@@ -1,24 +1,20 @@
 # Match tracker
 
 A very small web app to follow volleyball matches point by point. A staff member
-on the bench records points, timeouts and, if wanted, who scored; the families
-who are not there follow live on their phones. No database, no accounts, no
-cookies, no statistics. `docs/contract.md` is the interface (team files, event
-log, endpoints).
+on the bench records points and timeouts; the families who are not there follow
+live on their phones. No database, no accounts, no cookies, no statistics, and
+no name of a person anywhere. `docs/contract.md` is the interface (team files,
+event log, endpoints).
 
 ## What it looks like
 
-The example team `rho` (invented names), in Italian, the default of its team
-file. Left, what a family sees on a phone; right, the bench's scoring screen.
+The example team `rho`, in Italian, the default of its team file. Left, what a
+family sees on a phone; right, the bench's scoring screen.
 
 <p>
-<img src="docs/screenshots/family.png" alt="Family page of a live match: the score 14 to 11 in the fourth set, the link to the chart of the points, the finished sets with their times and the latest points with their scorers" width="300">
-<img src="docs/screenshots/staff.png" alt="Staff scoring screen: a button for each team, the question who scored the last point with a large button for each player, and the undo and the menu below" width="300">
+<img src="docs/screenshots/family.png" alt="Family page of a live match: the score, the link to the chart of the points and the finished sets with their times" width="300">
+<img src="docs/screenshots/staff.png" alt="Staff scoring screen: a button for each team, and the undo and the menu below" width="300">
 </p>
-
-The coach's call-up of a match, on a tablet:
-
-<img src="docs/screenshots/callup.png" alt="Call-up page: the players of the team as buttons, the called ones highlighted, and a save button" width="600">
 
 ## Running it
 
@@ -38,11 +34,11 @@ the family address is what families bookmark, the staff one is for the bench.
 The server never logs them, since they are secret. Both are derived from the
 team's file name (and the salt, if there is one), so they are the same at every
 start. Each team is one file in `teams/` (`teams/rho.json` is an example), read
-at start and again whenever it changes, so a late change to who is playing needs
-no restart. The server writes `data/`, one event log per match with its
-append-only journal (so that a lost log can be rebuilt: `match-tracker replay`),
-and, when a salt is in `teams/salt`, the team files themselves through the pages
-that edit them (`docs/contract.md`, *Editing*).
+at start and again whenever it changes, so a late change to a date needs no
+restart. The server writes `data/`, one event log per match with its append-only
+journal (so that a lost log can be rebuilt: `match-tracker replay`), and, when a
+salt is in `teams/salt`, the team files themselves through the pages that edit
+them (`docs/contract.md`, *Editing*).
 
 The server says nothing on the console but a failure to start. What the operator
 needs goes to `logs/app.log` (rotated daily at midnight, 30 files kept; the
@@ -96,8 +92,7 @@ uv run pytest                     # all tests; the browser ones need Chromium
 uv run match-tracker --teams teams --data /tmp/scratch-data
 ```
 
-`teams/rho.json` is an example with invented names. A team file with real names
-is kept out of git.
+`teams/rho.json` is an example. The file of a real team is kept out of git.
 
 ## Licence
 
