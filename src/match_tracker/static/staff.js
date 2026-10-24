@@ -23,26 +23,6 @@ const BASE = `/${matchNumber}`;
 const POLL_SECONDS = 10;
 const COUNTED = ["point", "timeout"];
 
-// The label of each scorer's button: the shortest prefix of at least three
-// letters no other name starts with, so that the text can be large. Names that
-// are a prefix of another ("Irene", "Irene A.") are written whole.
-function shortNames(players) {
-  const names = Object.entries(players).map(([id, name]) => {
-    const plain = name.replace(/\s+/g, "");
-    return { id, name, plain, key: plain.toLowerCase() };
-  });
-  return Object.fromEntries(
-    names.map(({ id, name, plain, key }) => {
-      for (let size = 3; size < key.length; size++) {
-        const prefix = key.slice(0, size);
-        if (names.filter((n) => n.key.startsWith(prefix)).length === 1)
-          return [id, plain.slice(0, size)];
-      }
-      return [id, name];
-    }),
-  );
-}
-
 export function start(initial, root) {
   let state = initial;
   let view = initial.current;
@@ -58,14 +38,6 @@ export function start(initial, root) {
     [...state.events]
       .reverse()
       .find((e) => e.set === view && COUNTED.includes(e.type));
-  // the point whose scorer a tap on a name sets: the last point or timeout of
-  // the match, if it is a point of ours (also after it closed its set)
-  const pending = () => {
-    const last = [...state.events]
-      .reverse()
-      .find((e) => COUNTED.includes(e.type));
-    return last?.type === "point" && last.team === "us" ? last : null;
-  };
   root.classList.add("staff");
 
   // One request at a time: a second tap while one is in flight is ignored.
@@ -181,19 +153,7 @@ export function start(initial, root) {
       timeout: t("timeout"),
     }[event.type];
     let control = null;
-    if (event.type === "point" && event.team === "us") {
-      control = h(
-        "select",
-        {
-          disabled: locked,
-          onchange: (e) => fix(event.id, { player: e.target.value || null }),
-        },
-        h("option", { value: "" }, `— ${t("no_scorer")}`),
-        ...Object.entries(state.players).map(([id, name]) =>
-          h("option", { value: id, selected: id === event.player }, name),
-        ),
-      );
-    } else if (event.type === "timeout") {
+    if (event.type === "timeout") {
       const counts = state.sets.find((s) => s.set === event.set).timeouts;
       const full = (side) =>
         side !== event.team && counts[side] >= state.rules.timeouts_per_set;
@@ -313,39 +273,6 @@ export function start(initial, root) {
         ),
       );
 
-    // who scored the last point: the buttons act on it, and a tap on the name
-    // already set takes it off
-    const last = view === state.current ? pending() : null;
-    const labels = shortNames(state.players);
-    const scorers = [
-      h(
-        "div",
-        { class: "ask" },
-        last
-          ? t(
-              "who_scored",
-              state.sets.find((s) => s.set === last.set).score.us,
-              us(),
-            )
-          : "",
-      ),
-      h(
-        "div",
-        { class: "players" },
-        ...Object.keys(state.players).map((id) =>
-          h(
-            "button",
-            {
-              class: last?.player === id ? "on" : "",
-              disabled: !editable || busy || !last,
-              onclick: () =>
-                fix(last.id, { player: last.player === id ? null : id }),
-            },
-            labels[id],
-          ),
-        ),
-      ),
-    ];
     const startSet = h(
       "button",
       {
@@ -355,13 +282,9 @@ export function start(initial, root) {
       },
       t("start_set", view),
     );
-    // the point that closed a set is offered for a scorer until it has one,
-    // before the next set starts; then only the start button is left
-    const middle = set
-      ? scorers
-      : last && !last.player
-        ? [...scorers, startSet]
-        : [startSet];
+    // between the two teams: the button that starts the next set, once there is
+    // one to start
+    const middle = set ? [] : [startSet];
 
     const bar = h(
       "div",

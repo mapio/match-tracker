@@ -1,13 +1,11 @@
 // The coach's (or DA's) start page, and the form of the team's settings. Reached
-// with the team's coach token: from here the call-up of each match, the season
-// and the team's rules, colors and roster are set.
+// with the team's coach token: from here the season and the team's rules and
+// colors are set.
 
 import {
   ApiError,
   applyColors,
-  formatDate,
   h,
-  icon,
   loadStrings,
   markRole,
   setTitle,
@@ -47,30 +45,6 @@ function dashboard(data) {
       h("a", { role: "button", href: `/${token}/season` }, t("season")),
       " ",
       h("a", { role: "button", href: `/${token}/team` }, t("coach_team")),
-    ),
-    h("h2", {}, t("callup")),
-    h(
-      "div",
-      { class: "cards" },
-      ...data.matches.map((match) =>
-        h(
-          "div",
-          { class: "card" },
-          h("b", {}, match.opponent),
-          h(
-            "div",
-            { class: "meta" },
-            `${formatDate(match.date)} · ${t("callup_count", match.called)}`,
-          ),
-          match.callup_open
-            ? h(
-                "a",
-                { class: "callup", href: `/${token}/${match.n}/players` },
-                [icon("people"), ` ${t("callup")}`],
-              )
-            : h("div", { class: "meta" }, t("callup_closed_note")),
-        ),
-      ),
     ),
   );
 }

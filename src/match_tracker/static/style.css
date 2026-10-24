@@ -125,38 +125,12 @@ a.back {
   font-weight: 700;
 }
 
-.card a.where,
-.card a.callup {
+.card a.where {
   display: inline-block;
   margin-top: 0.4rem;
   margin-right: 1rem;
   font-size: 0.9rem;
   text-decoration: none;
-}
-
-/* the call-up page: the roster as buttons to switch on and off */
-.picks {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
-  gap: 6px;
-  margin-bottom: 0.5rem;
-}
-
-.pick {
-  margin: 0;
-  padding: 0.6rem 0.2rem;
-  font-size: 0.95rem;
-  /* explicit colors: Pico sets the button's own background and text variables */
-  border: 2px solid #d1d5db;
-  background: #fff;
-  color: #4b5563;
-}
-
-.pick.on {
-  border-color: #16a34a;
-  background: #dcfce7;
-  color: #14532d;
-  font-weight: 700;
 }
 
 /* The pages that edit assume a tablet or a wider screen, and take its width; the
@@ -187,23 +161,6 @@ a.back {
 @media (min-width: 800px) {
   .columns {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  }
-}
-
-/* the players, below the settings, in two columns on a wide screen */
-.roster {
-  margin-top: 1rem;
-}
-
-.player-list {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  column-gap: 1.5rem;
-}
-
-@media (min-width: 800px) {
-  .player-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -241,14 +198,9 @@ a.back {
   max-width: 6rem;
 }
 
-#app.wide label.check,
 #app.wide .colors label {
   display: flex;
   gap: 0.5rem;
-}
-
-#app.wide label.check input {
-  margin: 0;
 }
 
 .colors {
@@ -263,17 +215,6 @@ a.back {
 
 .columns h2 {
   margin: 0.25rem 0 0.5rem;
-}
-
-.player {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.4rem;
-}
-
-.player input {
-  flex: 1;
 }
 
 .links a {
@@ -420,20 +361,6 @@ td.win {
   font-weight: 700;
 }
 
-ul.feed {
-  list-style: none;
-  padding: 0 0 0 0.75rem;
-  margin: 0;
-}
-
-ul.feed li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.2rem 0;
-}
-
 /* a time: when a point was added, when a set began and ended */
 .pill {
   flex: none;
@@ -449,15 +376,6 @@ ul.feed li {
 
 td .pill {
   display: inline-block;
-}
-
-/* a run is the same color several lines in a row */
-ul.feed li.us {
-  color: var(--us);
-}
-
-ul.feed li.them {
-  color: var(--them);
 }
 
 /* the staff screen: one view, no scrolling in play; with large text the content
@@ -521,7 +439,6 @@ ul.feed li.them {
 .teamrow {
   flex: 1 1 0px; /* px, not %: the screen's height is not fixed, so % would mean content */
   min-height: 56px;
-  max-height: 84px; /* the height left goes to the scorers */
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
@@ -550,38 +467,6 @@ ul.feed li.them {
 .dots {
   display: block;
   letter-spacing: 2px;
-}
-
-/* who scored the last point: it is empty when there is none to give a scorer */
-.ask {
-  flex: none;
-  min-height: 1.2em;
-  margin: 2px 0 -2px;
-  font-size: 0.85rem;
-  color: var(--pico-muted-color);
-}
-
-.players {
-  flex: 1 1 0px;
-  display: grid;
-  /* four to a row at normal size, fewer as the text grows, so a name stays whole */
-  grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr));
-  grid-auto-rows: minmax(48px, 1fr);
-  gap: 6px;
-}
-
-.players button {
-  font-size: 1.9rem;
-  font-weight: 700;
-  padding: 0 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.staff .players button.on {
-  background: var(--us);
-  color: #fff;
 }
 
 .staff button.start {

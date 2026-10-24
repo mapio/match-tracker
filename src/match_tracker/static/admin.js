@@ -87,7 +87,6 @@ try {
         timezone: "Europe/Rome",
         colors: { us: "#1d6fd8", them: "#c2410c" },
         contact: "",
-        show_scorers: true,
         rules: {
           best_of: 5,
           points: 25,
@@ -95,7 +94,6 @@ try {
           win_by: 2,
           timeouts_per_set: 2,
         },
-        roster: {},
       },
       submit: async (body) => {
         await call({ method: "POST", body });

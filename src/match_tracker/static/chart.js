@@ -35,7 +35,7 @@ const minutes = (ms) => ms / 60000;
 const clock = (m) =>
   `${Math.floor(m)}'${String(Math.round((m % 1) * 60) % 60).padStart(2, "0")}`;
 
-// the points and timeouts of a set as {m, team, type, player?} with the time in
+// the points and timeouts of a set as {m, team, type} with the time in
 // minutes from its start; the staff have the whole log, the families a timeline
 function setEvents(state, set) {
   const log = state.events ?? state.timeline;
@@ -63,7 +63,6 @@ export async function start(initial, root) {
       bubble,
       h("b", {}, `${point.us}–${point.them}`),
       ` · ${clock(point.m)}`,
-      point.scorer != null && ` · ${point.scorer}`,
     );
     bubble.style.borderColor = `var(--${team})`;
     bubble.hidden = false;
@@ -72,12 +71,6 @@ export async function start(initial, root) {
     const room = innerWidth - bubble.offsetWidth - 4;
     bubble.style.left = `${Math.min(Math.max(left, 4), room)}px`;
     bubble.style.top = `${Math.max(box.top - bubble.offsetHeight - 6, 4)}px`;
-  }
-
-  // the name of a scorer of ours: only the families who may see it have `players`
-  function scorer(event) {
-    if (event.team !== "us" || !state.players) return null;
-    return state.players[event.player] ?? t("no_scorer");
   }
 
   function setChart(set, width, height) {
@@ -98,7 +91,6 @@ export async function start(initial, root) {
         p: score[e.team],
         us: score.us,
         them: score.them,
-        scorer: scorer(e),
       });
       last = e.m;
     }

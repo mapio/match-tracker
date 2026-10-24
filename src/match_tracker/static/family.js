@@ -1,4 +1,4 @@
-// The match view for families: the live set, the closed sets, the latest points.
+// The match view for families: the live set, the closed sets.
 
 import {
   currentLanguage,
@@ -17,7 +17,6 @@ import {
   watch,
 } from "./common.js";
 
-const FEED_LENGTH = 10; // the server sends every point of the set; a phone shows the latest
 const POLL_SECONDS = 15;
 
 // hours and minutes on the viewer's clock, in the page's language
@@ -104,49 +103,6 @@ function setsTable(state) {
   );
 }
 
-// the viewer's clock in the page's language, from the event's UTC instant;
-// seconds, as points can come less than a minute apart
-const clock = (iso) =>
-  new Intl.DateTimeFormat(currentLanguage(), {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).format(new Date(iso));
-
-function feed(state) {
-  if (!state.feed || !state.feed.length) return null;
-  // the latest points are for a set in play: a closed set is in the table, and a
-  // finished match has its result
-  const current = state.sets.find((s) => s.set === state.current);
-  if (state.match.status === "over" || current?.closed) return null;
-  // the team that scored, and for ours the scorer too when there is one
-  const who = (point) => {
-    if (point.team === "them") return state.match.opponent;
-    const scorer = state.players[point.player];
-    return scorer ? `${state.team.name} (${scorer})` : state.team.name;
-  };
-  return h(
-    "div",
-    {},
-    h("h2", {}, t("last_points")),
-    h(
-      "ul",
-      { class: "feed" },
-      ...state.feed
-        .slice(0, FEED_LENGTH)
-        .map((p) =>
-          h(
-            "li",
-            { class: p.team },
-            h("span", { class: "who" }, who(p)),
-            h("span", { class: "pill" }, clock(p.t)),
-          ),
-        ),
-    ),
-  );
-}
-
 export function start(initial, root) {
   const notice = h("p", { class: "notice", hidden: true }, t("offline"));
   const body = h("div");
@@ -187,7 +143,6 @@ export function start(initial, root) {
           `${t("chart")} ›`,
         ),
       setsTable(state),
-      feed(state),
       privacyLink(),
     );
   }
