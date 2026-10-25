@@ -262,13 +262,17 @@ export function start(initial, root) {
         "div",
         { class: "teamrow" },
         // always there, so that the buttons do not move when the serve changes
-        h("span", {
-          class: set?.serving === side ? "ball" : "ball off",
-          ...(set?.serving === side && {
-            role: "img",
-            "aria-label": t("serving"),
-          }),
-        }),
+        h(
+          "span",
+          {
+            class: set?.serving === side ? "ball" : "ball off",
+            ...(set?.serving === side && {
+              role: "img",
+              "aria-label": t("serving"),
+            }),
+          },
+          set?.serving === side ? "🏐" : "",
+        ),
         h(
           "button",
           { class: `team ${side}`, disabled: idle, onclick: () => point(side) },

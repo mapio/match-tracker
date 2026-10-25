@@ -421,7 +421,7 @@ td .pill {
 }
 
 .score b {
-  font-size: 2.5rem;
+  font-size: 3.25rem;
   color: var(--pico-color);
   white-space: nowrap;
 }
@@ -440,20 +440,14 @@ td .pill {
   flex: 1 1 0px; /* px, not %: the screen's height is not fixed, so % would mean content */
   min-height: 56px;
   display: grid;
-  grid-template-columns: 1.75rem repeat(4, 1fr); /* the ball, then the buttons */
+  grid-template-columns: 2rem repeat(4, 1fr); /* the ball, then the buttons */
   gap: 6px;
 }
 
 .teamrow .ball {
   align-self: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  background: var(--pico-color);
-}
-
-.teamrow .ball.off {
-  background: none;
+  font-size: 1.75rem;
+  line-height: 1;
 }
 
 .teamrow .team {
