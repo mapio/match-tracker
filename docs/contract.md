@@ -43,7 +43,8 @@ made first, then in the code that depends on it.
   (`name`, optional `address`), optional `rules`.
 
 The app holds no name of a person: a team file with a `roster`, `show_scorers`
-or a match `players` is refused, naming the key.
+or a match `players` is refused, naming the key, and so is a match log with an
+event that has a `player`.
 
 The server validates the whole file at startup and names the offending path.
 

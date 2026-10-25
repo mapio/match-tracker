@@ -19,7 +19,7 @@ corrected from the menu.
 
 <p>
 <img src="docs/screenshots/family.png" alt="Family page of a live match: the score, the link to the chart of the points and the finished sets with their times" width="300">
-<img src="docs/screenshots/staff.png" alt="Staff scoring screen: a button for each team, and the undo and the menu below" width="300">
+<img src="docs/screenshots/staff.png" alt="Staff scoring screen: a button and a timeout for each team, the ball beside the serving team, and the undo and the menu below" width="300">
 </p>
 
 ## Running it
