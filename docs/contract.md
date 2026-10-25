@@ -87,8 +87,9 @@ not log them; `match-tracker urls` prints the links of every team.
 
 There are 12⁶ = 2,985,984 slugs. To make guessing impractical, requests with an
 unknown token are limited per client address (as the server sees it, so behind a
-proxy it runs with proxy headers on) to 10 per minute; the next ones get `429`.
-Requests with a known token are not limited.
+proxy it runs with proxy headers on, trusting a proxy on loopback only; an IPv6
+address counts by its /64) to 10 per minute; the next ones get `429`. Requests
+with a known token are not limited.
 
 With a salt there are two more kinds of token, from the same alphabet and
 matched the same way, for the pages that edit (*Editing*), each a higher level

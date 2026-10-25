@@ -139,3 +139,9 @@ def test_a_forged_forwarded_address_does_not_escape_the_limit(tmp_path):
 
         assert [ask(i).status_code for i in range(10)] == [404] * 10
         assert ask(10).status_code == 429
+
+
+def test_ipv6_addresses_of_one_64_share_a_count():
+    guard, _ = limiter()
+    assert [guard.allow(f"2001:db8:1::{i}") for i in range(4)] == [True] * 3 + [False]
+    assert guard.allow("2001:db8:2::1")

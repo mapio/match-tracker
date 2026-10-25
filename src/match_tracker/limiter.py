@@ -3,6 +3,19 @@
 legitimate visitor nothing, since a known token is never counted."""
 
 from collections import deque
+from ipaddress import IPv6Address, ip_network
+
+
+def _key(address):
+    """The address a visitor is counted under: an IPv6 visitor holds a whole /64,
+    so counting single addresses would give her 2**64 of them."""
+    try:
+        parsed = IPv6Address(address)
+    except ValueError:
+        return address  # IPv4, or the "?" of an unknown client
+    if parsed.ipv4_mapped is not None:
+        return str(parsed.ipv4_mapped)
+    return str(ip_network(f"{parsed}/64", strict=False))
 
 
 class Limiter:
@@ -17,7 +30,7 @@ class Limiter:
         its limit in the window; a refused request is not counted, so a client that
         keeps trying is let in again a window after its last counted request."""
         now = self._clock()
-        hits = self._hits.setdefault(address, deque())
+        hits = self._hits.setdefault(_key(address), deque())
         while hits and now - hits[0] >= self._window:
             hits.popleft()
         if len(hits) >= self._limit:
