@@ -125,3 +125,17 @@ def test_behind_a_proxy_each_forwarded_address_has_its_own_count(tmp_path):
         assert ask("10.0.0.1", 10).status_code == 429
         assert ask("10.0.0.2", 0).status_code == 404  # another visitor behind the proxy
         assert ask(None, 0).status_code == 404  # the proxy's own address, apart
+
+
+def test_a_forged_forwarded_address_does_not_escape_the_limit(tmp_path):
+    """A tunnel appends the visitor's address to what the visitor sent: the
+    leftmost entry is the visitor's to choose, the last one is the tunnel's."""
+    with serve(tmp_path) as live:
+
+        def ask(i):
+            forwarded = f"198.51.100.{i}, 203.0.113.7"  # forged, then the real one
+            headers = {"X-Forwarded-For": forwarded}
+            return httpx.get(f"{live.base}/api/zzzz{i:02d}", headers=headers, timeout=5)
+
+        assert [ask(i).status_code for i in range(10)] == [404] * 10
+        assert ask(10).status_code == 429
