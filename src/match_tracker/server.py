@@ -39,6 +39,10 @@ UNKNOWN_TOKEN_WINDOW = 60  # seconds
 # keep a copy, but ask the server before using it: the pages and scripts change
 # with the code, and a browser left to guess would run a stale script for hours
 REVALIDATE = {"Cache-Control": "no-cache"}
+# the icons of the home-screen app: an operator's own, beside the team files, win
+ICONS = ("icon-192.png", "icon-512.png", "icon-maskable-512.png")
+PNG = {"type": "image/png"}
+THEME_COLOR = BACKGROUND_COLOR = "#ffffff"  # the pages are Pico's white
 
 
 class RevalidatedFiles(StaticFiles):
@@ -248,17 +252,32 @@ def create_app(
         # browsers ask for it on every page; it names no token, so it must not count
         return Response(status_code=204)
 
-    def page_beside_teams(name):
-        """A page the operator writes, kept beside the team files; no token, so
-        it is not counted against the limit either."""
+    def page(name):
+        return FileResponse(STATIC / name, headers=REVALIDATE)
+
+    def page_beside_teams(name, fallback=None):
+        """A file the operator keeps beside the team files, else `fallback` (a
+        path) if given; no token, so it is not counted against the limit either."""
         page = Path(teams_dir) / name
         if not page.is_file():
+            page = fallback
+        if page is None:
             raise StarletteHTTPException(404)
         return FileResponse(page, headers=REVALIDATE)
 
     @app.get("/privacy")
     async def privacy():
         return page_beside_teams("privacy.html")
+
+    @app.get("/install")
+    async def install():
+        return page("install.html")
+
+    @app.get("/icons/{name}")
+    async def icons(name: str):
+        if name not in ICONS:
+            raise StarletteHTTPException(404)
+        return page_beside_teams(name, STATIC / "icons" / name)
 
     @app.get("/demo")
     async def demo():
@@ -528,9 +547,6 @@ def create_app(
     async def page_landing():
         return FileResponse(STATIC / "error.html", headers=REVALIDATE)
 
-    def page(name):
-        return FileResponse(STATIC / name, headers=REVALIDATE)
-
     @app.get("/{token}")
     async def page_list(token: str):
         if teams.is_admin(token):
@@ -539,6 +555,36 @@ def create_app(
             return page("coach.html")
         team_of(token)  # a token of no team is refused here
         return page("list.html")
+
+    # before `/{token}/{n}`, which would take the name for a match number
+    @app.get("/{token}/manifest.webmanifest")
+    async def manifest(token: str):
+        if not (teams.is_admin(token) or teams.find_coach(token) is not None):
+            team_of(token)  # a token of no team is refused here
+        start = f"/{token}"
+        body = {
+            "id": start,
+            "name": "MatchTracker",
+            "short_name": "MatchTracker",
+            "display": "standalone",
+            "start_url": start,
+            "scope": "/",
+            "theme_color": THEME_COLOR,
+            "background_color": BACKGROUND_COLOR,
+            "icons": [
+                {"src": "/icons/icon-192.png", "sizes": "192x192", **PNG},
+                {"src": "/icons/icon-512.png", "sizes": "512x512", **PNG},
+                {
+                    "src": "/icons/icon-maskable-512.png",
+                    "sizes": "512x512",
+                    "purpose": "maskable",
+                    **PNG,
+                },
+            ],
+        }
+        return JSONResponse(
+            body, media_type="application/manifest+json", headers=REVALIDATE
+        )
 
     @app.get("/{token}/{n}/chart")
     async def page_chart(token: str, n: str):
