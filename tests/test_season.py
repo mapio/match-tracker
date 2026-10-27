@@ -263,6 +263,37 @@ def test_the_links_page_has_a_coach_column_and_the_admin_only_with_a_salt(tmp_pa
     assert "Coach" not in text and "Admin" not in text
 
 
+def test_a_role_can_have_an_origin_of_its_own_in_the_links_page(tmp_path):
+    _, teams = make(tmp_path)
+    page = teams.markdown(
+        "https://example.org",
+        {"staff": "https://staff.example.org/", "coach": "https://coach.example.org"},
+    )
+    row = next(line for line in page.splitlines() if "(`rho`)" in line)
+    family, staff, coach = [cell.strip() for cell in row.split("|")[2:5]]
+    assert family.endswith(f"](https://example.org/{teams.tokens['rho']['family']})")
+    assert f"(https://staff.example.org/{teams.tokens['rho']['staff']})" in staff
+    assert f"(https://coach.example.org/{teams.coach_token('rho')})" in coach
+    admin = f"/{teams.admin_token}"
+    assert f"Admin: [{admin}](https://example.org{admin})" in page
+
+
+def test_the_urls_subcommand_takes_a_base_per_role(tmp_path, capsys):
+    from match_tracker.server import main
+
+    teams_dir = tmp_path / "teams"
+    teams_dir.mkdir()
+    (teams_dir / "rho.json").write_text(json.dumps(VALID))
+    (teams_dir / "salt").write_text("s3cret\n")
+    main(
+        ["urls", "--teams", str(teams_dir), "--base", "https://example.org"]
+        + ["--role-base", "admin=https://admin.example.org"]
+    )
+    assert "Admin: [/" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        main(["urls", "--teams", str(teams_dir), "--role-base", "family=https://x"])
+
+
 @pytest.fixture
 def live(tmp_path):
     with serve(tmp_path, salt=SALT) as live:

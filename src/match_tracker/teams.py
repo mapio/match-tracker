@@ -472,22 +472,27 @@ class Teams:
     def admin_token(self):
         return admin_token(self._salt)
 
-    def markdown(self, base):
-        """The links to hand out, as a Markdown page with clickable links."""
+    def markdown(self, base, role_bases=None):
+        """The links to hand out, as a Markdown page with clickable links.
+
+        A role installed as an app of its own needs an origin of its own: its
+        link starts with `role_bases[role]` where it has one, else with `base`.
+        """
+        bases = {role: b.rstrip("/") for role, b in (role_bases or {}).items()}
         base = base.rstrip("/")
 
-        def link(path):
-            return f"[{path}]({base}{path})"
+        def link(role, path):
+            return f"[{path}]({bases.get(role, base)}{path})"
 
         columns = ["Family", "Staff", *(["Coach"] if self._salt else [])]
         rows = []
         for team_id, roles in self.tokens.items():
-            paths = [f"/{roles[r]}" for r in ROLES]
+            links = [link(r, f"/{roles[r]}") for r in ROLES]
             if self._salt:
-                paths.append(f"/{self.coach_token(team_id)}")
+                links.append(link("coach", f"/{self.coach_token(team_id)}"))
             rows.append(
                 f"| {self.team(team_id).name} (`{team_id}`) | "
-                + " | ".join(link(p) for p in paths)
+                + " | ".join(links)
                 + " |"
             )
         return "\n".join(
@@ -495,7 +500,11 @@ class Teams:
                 "# Links",
                 "",
                 f"Landing page: <{base}/>",
-                *(["", f"Admin: {link('/' + self.admin_token)}"] if self._salt else []),
+                *(
+                    ["", f"Admin: {link('admin', '/' + self.admin_token)}"]
+                    if self._salt
+                    else []
+                ),
                 "",
                 "| Team | " + " | ".join(columns) + " |",
                 "| --- |" + " --- |" * len(columns),

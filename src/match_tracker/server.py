@@ -634,12 +634,28 @@ def links(argv):
         default="http://127.0.0.1:8000",
         help="the address the links start with",
     )
+    parser.add_argument(
+        "--role-base",
+        action="append",
+        default=[],
+        metavar="ROLE=ADDRESS",
+        help="the address the links of a role (staff, coach, admin) start with, "
+        "where that role is an app of its own on its own origin; repeatable",
+    )
     args = parser.parse_args(argv)
+    role_bases = {}
+    for item in args.role_base:
+        role, _, address = item.partition("=")
+        if role not in ("staff", "coach", "admin") or not address:
+            parser.error(
+                f"--role-base wants staff, coach or admin, then =ADDRESS: {item}"
+            )
+        role_bases[role] = address
     try:
         teams = Teams(args.teams, args.data, salt=read_salt(args.teams))
     except (OSError, ConfigError) as error:
         sys.exit(f"error: {error}")
-    print(teams.markdown(args.base), end="")
+    print(teams.markdown(args.base, role_bases), end="")
 
 
 def main(argv=None):

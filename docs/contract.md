@@ -83,7 +83,11 @@ prefixes every hashed text (`<salt>:<team id>:<role>`), so that knowing a team
 id does not give its tokens. Its content, minus surrounding whitespace, must not
 be empty. It is not a team file, is never committed, and must be kept: the links
 depend on it. Without it the tokens are the unsalted ones above. The server does
-not log them; `match-tracker urls` prints the links of every team.
+not log them; `match-tracker urls` prints the links of every team, those of a
+role that is an app of its own on an origin of its own (`--role-base`, for
+staff, coach or admin) starting with that origin, the others with `--base`. The
+server does not look at the host of a request: any host the front serves
+answers.
 
 There are 12⁶ = 2,985,984 slugs. To make guessing impractical, requests with an
 unknown token are limited per client address (as the server sees it, so behind a

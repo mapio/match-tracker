@@ -83,6 +83,13 @@ name in the directory of the team files (`teams/`) replaces one, and the names
 suffix `-staff`, `-coach` or `-admin`) are listed in `docs/contract.md`. The
 maskable icon keeps its art inside the central 80%.
 
+Chrome on Android refuses to install a third app from one origin, and its own
+guidance is one origin per app, so an app that is to be installed on its own
+gets a host of its own: the server answers on any host the front serves, and
+`match-tracker urls --role-base staff=https://staff.example.org` (also `coach`
+and `admin`, repeatable) writes that role's links there, the others starting
+with `--base`.
+
 ## Privacy notice
 
 Every public page links to `/privacy`, which serves `privacy.html` from the
