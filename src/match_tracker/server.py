@@ -586,7 +586,7 @@ def create_app(
             "short_name": short_name,
             "display": "standalone",
             "start_url": start,
-            "scope": "/",
+            "scope": start,
             "theme_color": THEME_COLOR,
             "background_color": BACKGROUND_COLOR,
             "icons": [

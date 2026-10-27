@@ -230,13 +230,14 @@ takes its role from the API's answer.
   beside the team files (`404` when it is not there), for presenting the app.
 - `/<tok>/manifest.webmanifest`: the web app manifest of that token
   (`application/manifest+json`, `no-cache`): `standalone`, `start_url` and `id`
-  the token's own page `/<tok>`, scope `/`, and the name, short name and icons
-  of the token's role, so that the apps are told apart on a home screen: family
-  `MatchTracker` and `MatchTracker`; staff `MatchTrackerStaff` and `MTStaff`;
-  coach `MatchTrackerCoach` and `MTCoach`; admin `MatchTrackerAdmin` and
-  `MTAdmin`. Each has three icons, `icon-192`, `icon-512` and
-  `icon-maskable-512`, with the suffix `-staff`, `-coach` or `-admin` (the
-  family's have none). The manifest is the page's own link
+  the token's own page `/<tok>`, scope that same page (not the whole site, or
+  the first app installed would take the links of the others), and the name,
+  short name and icons of the token's role, so that the apps are told apart on a
+  home screen: family `MatchTracker` and `MatchTracker`; staff
+  `MatchTrackerStaff` and `MTStaff`; coach `MatchTrackerCoach` and `MTCoach`;
+  admin `MatchTrackerAdmin` and `MTAdmin`. Each has three icons, `icon-192`,
+  `icon-512` and `icon-maskable-512`, with the suffix `-staff`, `-coach` or
+  `-admin` (the family's have none). The manifest is the page's own link
   (`<link rel="manifest">`, added by the script of every page that has a token),
   so the installed app opens on the page the token opens; the pages also say the
   short name and the 192 icon for Safari, which ignores the manifest. An unknown

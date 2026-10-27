@@ -52,7 +52,9 @@ def test_every_role_gets_a_manifest_that_starts_on_its_own_page(tmp_path):
         ]
         assert body["display"] == "standalone"
         assert body["start_url"] == body["id"] == f"/{token}"
-        assert body["start_url"].startswith(body["scope"])
+        # a scope of the whole site would make the first installed app take
+        # the links of every other role
+        assert body["scope"] == body["start_url"]
         assert {(i["sizes"], i.get("purpose", "any")) for i in body["icons"]} == {
             ("192x192", "any"),
             ("512x512", "any"),
