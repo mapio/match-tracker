@@ -51,7 +51,7 @@ def test_every_role_gets_a_manifest_that_starts_on_its_own_page(tmp_path):
             f"/icons/icon-maskable-512{suffix}.png",
         ]
         assert body["display"] == "standalone"
-        assert body["start_url"] == body["id"] == f"/{token}"
+        assert body["start_url"] == body["id"] == f"/{token}/"
         # a scope of the whole site would make the first installed app take
         # the links of every other role
         assert body["scope"] == body["start_url"]
@@ -62,6 +62,15 @@ def test_every_role_gets_a_manifest_that_starts_on_its_own_page(tmp_path):
         }
         for icon in body["icons"]:
             assert client.get(icon["src"]).headers["content-type"] == icon["type"]
+
+
+def test_the_page_answers_at_its_directory_too(tmp_path):
+    client, tokens = make_client(tmp_path)
+    for token in tokens.values():
+        answer = client.get(f"/{token}/", follow_redirects=False)
+        assert answer.status_code == 200
+        assert answer.text == client.get(f"/{token}").text
+    assert client.get("/nosuchtoken/", follow_redirects=False).status_code == 404
 
 
 def test_the_manifest_does_not_take_the_place_of_a_match(tmp_path):

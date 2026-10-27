@@ -561,6 +561,7 @@ def create_app(
         return FileResponse(STATIC / "error.html", headers=REVALIDATE)
 
     @app.get("/{token}")
+    @app.get("/{token}/")  # the installed app's scope and start: a directory
     async def page_list(token: str):
         if teams.is_admin(token):
             return page("admin.html")
@@ -579,7 +580,7 @@ def create_app(
         else:
             _, role = team_of(token)  # a token of no team is refused here
         name, short_name, suffix = APPS[role]
-        start = f"/{token}"
+        start = f"/{token}/"
         body = {
             "id": start,
             "name": name,
