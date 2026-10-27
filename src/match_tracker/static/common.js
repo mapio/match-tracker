@@ -171,7 +171,22 @@ export const icon = (name) =>
 // admin's): Italian, whatever the browser says; ?lang= still overrides it.
 export const DEFAULT_LANGUAGE = "it";
 
-// The link to the privacy notice, at the foot of the public pages (the pages that
-// edit, which their editors know, leave it to the landing page).
-export const privacyLink = () =>
-  h("p", { class: "foot" }, h("a", { href: "/privacy" }, t("privacy")));
+// The links to the privacy notice and to how to install the app, at the foot of
+// the public pages (the pages that edit, which their editors know, leave them
+// to the landing page).
+export const footLinks = () =>
+  h(
+    "p",
+    { class: "foot" },
+    h("a", { href: "/privacy" }, t("privacy")),
+    " · ",
+    h("a", { href: `/install?lang=${language}` }, t("install_link")),
+  );
+
+// The manifest is the token's own, so the pages that have a token link it; the
+// error pages, where the token may be wrong, and the install page do not.
+if (token && !("noManifest" in document.documentElement.dataset)) {
+  document.head.append(
+    h("link", { rel: "manifest", href: `/${token}/manifest.webmanifest` }),
+  );
+}

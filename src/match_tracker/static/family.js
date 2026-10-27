@@ -9,7 +9,7 @@ import {
   mapsUrl,
   matchNumber,
   poll,
-  privacyLink,
+  footLinks,
   setTitle,
   show,
   t,
@@ -143,7 +143,7 @@ export function start(initial, root) {
           `${t("chart")} ›`,
         ),
       setsTable(state),
-      privacyLink(),
+      footLinks(),
     );
   }
 

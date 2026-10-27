@@ -10,7 +10,7 @@ import {
   markRole,
   matchNumber,
   poll,
-  privacyLink,
+  footLinks,
   setTitle,
   show,
   t,
@@ -300,7 +300,7 @@ export async function start(initial, root) {
       "div",
       { class: "chart-foot" },
       h("p", { class: "foot" }, t("chart_note")),
-      privacyLink(),
+      footLinks(),
     ),
     bubble,
   );

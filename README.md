@@ -68,6 +68,17 @@ font for their buttons. Both are copied under `src/match_tracker/static/vendor/`
 (MIT, each with its licence, versions 2.0.6 and 1.11.3), so that a visitor's
 address goes to no other host; a test checks that no page loads from one.
 
+## Home screen
+
+Each token's pages can be added to a phone's home screen (`/install` says how,
+and the public pages link to it): the app serves a manifest per token and has no
+service worker, so nothing is stored on the device and there is no offline mode.
+The icons are the neutral ones in `static/icons/` (`icon.svg`, rendered by
+`scripts/make-icons`, which needs inkscape and ImageMagick); a file named
+`icon-192.png`, `icon-512.png` or `icon-maskable-512.png` in the directory of
+the team files (`teams/`) replaces the one of that name. The maskable icon keeps
+its art inside the central 80%.
+
 ## Privacy notice
 
 Every public page links to `/privacy`, which serves `privacy.html` from the

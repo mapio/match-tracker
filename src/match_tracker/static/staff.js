@@ -12,7 +12,7 @@ import {
   h,
   matchNumber,
   poll,
-  privacyLink,
+  footLinks,
   setTitle,
   show,
   t,
@@ -239,7 +239,7 @@ export function start(initial, root) {
         h("div", { class: "extras" }, ...extras),
         state.team.demo && resetButton(),
         h("ul", {}, ...events.map(eventRow)),
-        privacyLink(),
+        footLinks(),
       ].filter(Boolean),
     );
   }

@@ -9,7 +9,7 @@ import {
   loadStrings,
   mapsUrl,
   markRole,
-  privacyLink,
+  footLinks,
   setTitle,
   show,
   t,
@@ -96,12 +96,7 @@ async function refresh() {
       setTitle(list.team.name);
       ready = true;
     }
-    show(
-      root,
-      h("h1", {}, list.team.name),
-      layout(list.matches),
-      privacyLink(),
-    );
+    show(root, h("h1", {}, list.team.name), layout(list.matches), footLinks());
   } catch (error) {
     if (!ready) show(root, h("p", { class: "notice" }, error.message));
   }

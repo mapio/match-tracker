@@ -228,6 +228,21 @@ takes its role from the API's answer.
   limit on unknown tokens. The landing and the error pages link to it.
 - `/demo`: likewise an optional page of the operator's, the file `demo.html`
   beside the team files (`404` when it is not there), for presenting the app.
+- `/<tok>/manifest.webmanifest`: the web app manifest of that token
+  (`application/manifest+json`, `no-cache`): name and short name `MatchTracker`,
+  `standalone`, `start_url` and `id` the token's own page `/<tok>`, scope `/`,
+  the three icons. It is the page's own link (`<link rel="manifest">`, added by
+  the script of every page that has a token), so the installed app opens on the
+  page the token opens. An unknown token gets what any page gets, the `404` or
+  `429` and the count against the limit; the error pages and `/install` do not
+  link it.
+- `/icons/icon-192.png`, `/icons/icon-512.png`, `/icons/icon-maskable-512.png`:
+  the manifest's icons: the file of that name beside the team files when there
+  is one, else the neutral icon (two discs and a P) of `static/icons/`; no
+  token, not counted by the limit. Nothing else is served under `/icons`.
+- `/install`: how to add the app to a phone's home screen, on Android and on
+  iPhone; the same for everyone, no token, not counted by the limit. The public
+  pages link to it from their foot, with the language they show.
 - `/static/...`: scripts, style and `i18n.json`.
 - `/favicon.ico`: `204`, no content; it names no token and is not counted by the
   limit on unknown tokens.
