@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Renders the neutral icons beside icon.svg; needs inkscape and ImageMagick.
+# Renders the neutral icons beside the icon*.svg; needs inkscape and ImageMagick.
 # The maskable one is the same art at 80%, inside the safe zone, on white.
 set -euo pipefail
 dir="$(dirname "$0")/../src/match_tracker/static/icons"
-for size in 192 512; do
-  inkscape "$dir/icon.svg" --export-type=png --export-width="$size" \
-    --export-filename="$dir/icon-$size.png"
+for suffix in "" -staff -coach -admin; do
+  for size in 192 512; do
+    inkscape "$dir/icon$suffix.svg" --export-type=png --export-width="$size" \
+      --export-filename="$dir/icon-$size$suffix.png"
+  done
+  convert "$dir/icon-512$suffix.png" -resize 410x410 -background white \
+    -gravity center -extent 512x512 "$dir/icon-maskable-512$suffix.png"
 done
-convert "$dir/icon-512.png" -resize 410x410 -background white -gravity center \
-  -extent 512x512 "$dir/icon-maskable-512.png"
