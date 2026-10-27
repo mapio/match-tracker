@@ -69,9 +69,24 @@ export function mapsUrl(place) {
 
 // The role goes on the page so that the stylesheet can set the staff pages
 // apart (a frame), and the title says it too, for a row of tabs.
-export function markRole(role) {
+export function markRole(role, app = role) {
   document.documentElement.dataset.role = role;
+  const [title, suffix] = APPS[app];
+  document.querySelector("meta[name=apple-mobile-web-app-title]").content =
+    title;
+  document.querySelector("link[rel=apple-touch-icon]").href =
+    `/icons/icon-192${suffix}.png`;
 }
+
+// The short name and icon suffix of each role's app, as the server's manifest says
+// (`APPS` in server.py): the pages say them for Safari, which ignores the manifest.
+// The coach's and the admin's pages are styled as staff but are apps of their own.
+const APPS = {
+  family: ["MatchTracker", ""],
+  staff: ["MTStaff", "-staff"],
+  coach: ["MTCoach", "-coach"],
+  admin: ["MTAdmin", "-admin"],
+};
 
 export function setTitle(title) {
   const staff = document.documentElement.dataset.role === "staff";

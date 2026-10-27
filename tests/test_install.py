@@ -12,9 +12,16 @@ from test_stream import serve
 import match_tracker
 
 STATIC = Path(match_tracker.__file__).parent / "static"
+APPS = {  # role: (name, short name, suffix of the icons' files)
+    "family": ("MatchTracker", "MatchTracker", ""),
+    "staff": ("MatchTrackerStaff", "MTStaff", "-staff"),
+    "coach": ("MatchTrackerCoach", "MTCoach", "-coach"),
+    "admin": ("MatchTrackerAdmin", "MTAdmin", "-admin"),
+}
 NEUTRAL = {
     name: (STATIC / "icons" / name).read_bytes()
-    for name in ("icon-192.png", "icon-512.png", "icon-maskable-512.png")
+    for _, _, suffix in APPS.values()
+    for name in (f"icon-{size}{suffix}.png" for size in ("192", "512", "maskable-512"))
 }
 
 
@@ -24,19 +31,25 @@ def manifest_of(client, token):
 
 def test_every_role_gets_a_manifest_that_starts_on_its_own_page(tmp_path):
     client, teams = make(tmp_path)
-    tokens = [
-        teams.tokens["rho"]["family"],
-        teams.tokens["rho"]["staff"],
-        teams.coach_token("rho"),
-        teams.admin_token,
-    ]
-    for token in tokens:
+    tokens = {
+        "family": teams.tokens["rho"]["family"],
+        "staff": teams.tokens["rho"]["staff"],
+        "coach": teams.coach_token("rho"),
+        "admin": teams.admin_token,
+    }
+    for role, token in tokens.items():
         answer = manifest_of(client, token)
         assert answer.status_code == 200
         assert answer.headers["content-type"] == "application/manifest+json"
         assert answer.headers["cache-control"] == "no-cache"
         body = answer.json()
-        assert body["name"] == body["short_name"] == "MatchTracker"
+        name, short_name, suffix = APPS[role]
+        assert (body["name"], body["short_name"]) == (name, short_name), role
+        assert [i["src"] for i in body["icons"]] == [
+            f"/icons/icon-192{suffix}.png",
+            f"/icons/icon-512{suffix}.png",
+            f"/icons/icon-maskable-512{suffix}.png",
+        ]
         assert body["display"] == "standalone"
         assert body["start_url"] == body["id"] == f"/{token}"
         assert body["start_url"].startswith(body["scope"])
@@ -106,14 +119,19 @@ def test_the_icons_are_the_neutral_ones_unless_the_operator_has_its_own(tmp_path
         assert answer.status_code == 200 and answer.content == neutral
         assert answer.headers["content-type"] == "image/png"
     (tmp_path / "teams" / "icon-192.png").write_bytes(b"team icon")
+    (tmp_path / "teams" / "icon-512-coach.png").write_bytes(b"coach icon")
     assert client.get("/icons/icon-192.png").content == b"team icon"
+    assert client.get("/icons/icon-512-coach.png").content == b"coach icon"
     assert client.get("/icons/icon-512.png").content == NEUTRAL["icon-512.png"]
+    assert (
+        client.get("/icons/icon-512-staff.png").content == NEUTRAL["icon-512-staff.png"]
+    )
 
 
 def test_only_the_named_icons_are_served(tmp_path):
     client, _ = make_client(tmp_path)
     (tmp_path / "teams" / "secret.png").write_bytes(b"x")
-    for name in ("secret.png", "icon.svg", "..%2Frho.json"):
+    for name in ("secret.png", "icon.svg", "icon-coach.svg", "..%2Frho.json"):
         assert client.get(f"/icons/{name}").status_code == 404
 
 
@@ -126,17 +144,27 @@ def live(tmp_path):
 def test_the_pages_link_the_manifest_of_their_token_and_the_install_page(page, live):
     family, staff = live.tokens["family"], live.tokens["staff"]
     coach = live.teams.coach_token("rho")
-    for path, token in (
-        (f"/{family}", family),
-        (f"/{family}/1", family),
-        (f"/{staff}/1", staff),
-        (f"/{coach}/season", coach),
+    admin = live.teams.admin_token
+    for path, token, role in (
+        (f"/{family}", family, "family"),
+        (f"/{family}/1", family, "family"),
+        (f"/{staff}", staff, "staff"),
+        (f"/{staff}/1", staff, "staff"),
+        (f"/{family}/1/chart", family, "family"),
+        (f"/{coach}", coach, "coach"),
+        (f"/{coach}/season", coach, "coach"),
+        (f"/{admin}", admin, "admin"),
     ):
         page.goto(live.base + path)
         page.wait_for_selector("#app > :not([hidden])")
         link = page.locator("link[rel=manifest]")
         assert link.get_attribute("href") == f"/{token}/manifest.webmanifest", path
-        assert page.locator("link[rel=apple-touch-icon]").count() == 1
+        # Safari ignores the manifest: the page says the same for itself
+        _, short_name, suffix = APPS[role]
+        title = page.locator("meta[name=apple-mobile-web-app-title]")
+        assert title.get_attribute("content") == short_name, path
+        icon = page.locator("link[rel=apple-touch-icon]")
+        assert icon.get_attribute("href") == f"/icons/icon-192{suffix}.png", path
         assert page.locator("meta[name=theme-color]").count() == 2
     page.goto(f"{live.base}/{family}")
     page.wait_for_selector("a[href^='/install']")

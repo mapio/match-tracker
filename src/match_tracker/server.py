@@ -39,8 +39,21 @@ UNKNOWN_TOKEN_WINDOW = 60  # seconds
 # keep a copy, but ask the server before using it: the pages and scripts change
 # with the code, and a browser left to guess would run a stale script for hours
 REVALIDATE = {"Cache-Control": "no-cache"}
-# the icons of the home-screen app: an operator's own, beside the team files, win
-ICONS = ("icon-192.png", "icon-512.png", "icon-maskable-512.png")
+# the home-screen app of each role: its name, its short name (what fits under the
+# icon) and the suffix of its icons' files, so that the apps are told apart on a
+# home screen; the family's is the plain one
+APPS = {
+    "family": ("MatchTracker", "MatchTracker", ""),
+    "staff": ("MatchTrackerStaff", "MTStaff", "-staff"),
+    "coach": ("MatchTrackerCoach", "MTCoach", "-coach"),
+    "admin": ("MatchTrackerAdmin", "MTAdmin", "-admin"),
+}
+# the icons of those apps: an operator's own, beside the team files, win
+ICONS = tuple(
+    f"icon-{size}{suffix}.png"
+    for _, _, suffix in APPS.values()
+    for size in ("192", "512", "maskable-512")
+)
 PNG = {"type": "image/png"}
 THEME_COLOR = BACKGROUND_COLOR = "#ffffff"  # the pages are Pico's white
 
@@ -559,23 +572,28 @@ def create_app(
     # before `/{token}/{n}`, which would take the name for a match number
     @app.get("/{token}/manifest.webmanifest")
     async def manifest(token: str):
-        if not (teams.is_admin(token) or teams.find_coach(token) is not None):
-            team_of(token)  # a token of no team is refused here
+        if teams.is_admin(token):
+            role = "admin"
+        elif teams.find_coach(token) is not None:
+            role = "coach"
+        else:
+            _, role = team_of(token)  # a token of no team is refused here
+        name, short_name, suffix = APPS[role]
         start = f"/{token}"
         body = {
             "id": start,
-            "name": "MatchTracker",
-            "short_name": "MatchTracker",
+            "name": name,
+            "short_name": short_name,
             "display": "standalone",
             "start_url": start,
             "scope": "/",
             "theme_color": THEME_COLOR,
             "background_color": BACKGROUND_COLOR,
             "icons": [
-                {"src": "/icons/icon-192.png", "sizes": "192x192", **PNG},
-                {"src": "/icons/icon-512.png", "sizes": "512x512", **PNG},
+                {"src": f"/icons/icon-192{suffix}.png", "sizes": "192x192", **PNG},
+                {"src": f"/icons/icon-512{suffix}.png", "sizes": "512x512", **PNG},
                 {
-                    "src": "/icons/icon-maskable-512.png",
+                    "src": f"/icons/icon-maskable-512{suffix}.png",
                     "sizes": "512x512",
                     "purpose": "maskable",
                     **PNG,

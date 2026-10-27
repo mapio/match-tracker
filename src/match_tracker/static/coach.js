@@ -53,7 +53,7 @@ try {
   const data = await call();
   await loadStrings(data.team.lang);
   applyColors(data.team);
-  markRole("staff");
+  markRole("staff", "coach");
   setTitle(`${t("coach")} · ${data.team.name}`);
   if (which !== "team") {
     dashboard(data);

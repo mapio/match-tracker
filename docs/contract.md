@@ -229,17 +229,24 @@ takes its role from the API's answer.
 - `/demo`: likewise an optional page of the operator's, the file `demo.html`
   beside the team files (`404` when it is not there), for presenting the app.
 - `/<tok>/manifest.webmanifest`: the web app manifest of that token
-  (`application/manifest+json`, `no-cache`): name and short name `MatchTracker`,
-  `standalone`, `start_url` and `id` the token's own page `/<tok>`, scope `/`,
-  the three icons. It is the page's own link (`<link rel="manifest">`, added by
-  the script of every page that has a token), so the installed app opens on the
-  page the token opens. An unknown token gets what any page gets, the `404` or
-  `429` and the count against the limit; the error pages and `/install` do not
-  link it.
-- `/icons/icon-192.png`, `/icons/icon-512.png`, `/icons/icon-maskable-512.png`:
-  the manifest's icons: the file of that name beside the team files when there
-  is one, else the neutral icon (two discs and a P) of `static/icons/`; no
-  token, not counted by the limit. Nothing else is served under `/icons`.
+  (`application/manifest+json`, `no-cache`): `standalone`, `start_url` and `id`
+  the token's own page `/<tok>`, scope `/`, and the name, short name and icons
+  of the token's role, so that the apps are told apart on a home screen: family
+  `MatchTracker` and `MatchTracker`; staff `MatchTrackerStaff` and `MTStaff`;
+  coach `MatchTrackerCoach` and `MTCoach`; admin `MatchTrackerAdmin` and
+  `MTAdmin`. Each has three icons, `icon-192`, `icon-512` and
+  `icon-maskable-512`, with the suffix `-staff`, `-coach` or `-admin` (the
+  family's have none). The manifest is the page's own link
+  (`<link rel="manifest">`, added by the script of every page that has a token),
+  so the installed app opens on the page the token opens; the pages also say the
+  short name and the 192 icon for Safari, which ignores the manifest. An unknown
+  token gets what any page gets, the `404` or `429` and the count against the
+  limit; the error pages and `/install` do not link it.
+- `/icons/icon-192.png`, `/icons/icon-192-staff.png` and so on, the twelve names
+  the manifests list: the file of that name beside the team files when there is
+  one, else the neutral icon (two discs and a P, with the letter of the role, S,
+  C or A, as a subscript) of `static/icons/`; no token, not counted by the
+  limit. Nothing else is served under `/icons`.
 - `/install`: how to add the app to a phone's home screen, on Android and on
   iPhone; the same for everyone, no token, not counted by the limit. The public
   pages link to it from their foot, with the language they show.

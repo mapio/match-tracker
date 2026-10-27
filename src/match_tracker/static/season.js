@@ -178,7 +178,7 @@ try {
   const data = await call();
   await loadStrings(data.team.lang);
   applyColors(data.team);
-  markRole("staff");
+  markRole("staff", "coach");
   setTitle(`${t("season")} · ${data.team.name}`);
   start(data);
 } catch (error) {

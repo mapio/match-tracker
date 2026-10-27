@@ -67,7 +67,7 @@ function listView(data) {
 
 try {
   await loadStrings(DEFAULT_LANGUAGE);
-  markRole("staff");
+  markRole("staff", "admin");
   document.title = `Staff · ${t("admin")}`;
   const overview = await call();
   if (which !== "new") {
