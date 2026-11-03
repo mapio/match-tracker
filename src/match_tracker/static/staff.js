@@ -33,7 +33,7 @@ export function start(initial, root) {
   let extras = []; // the buttons of the menu that close a set or the match
   let notice = null;
   let timer = null;
-  const us = () => state.team.name;
+  const us = () => (PRACTICE ? t("practice_us") : state.team.name);
   const them = () => (PRACTICE ? t("practice_them") : state.match.opponent);
   const viewed = () => state.sets.find((s) => s.set === view) ?? null;
   const lastCounted = () =>

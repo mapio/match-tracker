@@ -345,7 +345,7 @@ def test_the_staff_list_has_a_practice_button_and_the_family_list_none(tmp_path,
         link = page.locator("a.practice-link")
         assert link.count() == 1
         assert link.get_attribute("href") == f"/{live.tokens['staff']}/practice"
-        assert link.inner_text() == "Partitella"
+        assert link.inner_text() == "Allenamento"
         # after the matches
         assert page.locator(".card ~ a.practice-link").count() == 1
         page.goto(f"{live.base}/{live.tokens['family']}")
@@ -358,9 +358,9 @@ def test_the_staff_list_has_a_practice_button_and_the_family_list_none(tmp_path,
 def test_the_practice_screen_scores_a_game_and_starts_the_next(tmp_path, page):
     with serve(tmp_path) as live:
         open_practice(page, live)
-        assert page.inner_text(".practice-head b") == "Partitella"
+        assert page.inner_text(".practice-head b") == "Allenamento"
         assert page.locator(".practice-head span").inner_text() == ""
-        assert page.inner_text(".start.them") == "Batte Gli altri"
+        assert page.inner_text(".start.them") == "Batte B"
         page.click(".start.us")
         page.wait_for_selector(".team.us:not([disabled])")
         page.click(".team.us")
