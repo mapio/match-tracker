@@ -6,6 +6,7 @@ import json
 from datetime import timedelta
 from urllib.request import urlopen
 
+import httpx
 from test_api import KICKOFF
 from test_stream import serve
 from test_teams import VALID
@@ -318,4 +319,76 @@ def test_a_team_that_is_not_a_demo_has_no_reset(tmp_path, page):
         open_staff(page, live)
         page.click("text=⋯")
         assert page.locator(".reset").count() == 0
+    assert page.errors == []
+
+
+def practice_post(live, **body):
+    url = f"{live.base}/api/{live.tokens['staff']}/practice/events"
+    answer = httpx.post(url, json=body, timeout=5)
+    assert answer.status_code == 201, answer.text
+
+
+def practice_state(live):
+    with urlopen(f"{live.base}/api/{live.tokens['staff']}/practice") as answer:
+        return json.load(answer)
+
+
+def open_practice(page, live):
+    page.goto(f"{live.base}/{live.tokens['staff']}/practice")
+    page.wait_for_selector(".score")
+
+
+def test_the_staff_list_has_a_practice_button_and_the_family_list_none(tmp_path, page):
+    with serve(tmp_path) as live:
+        page.goto(f"{live.base}/{live.tokens['staff']}")
+        page.wait_for_selector(".card")
+        link = page.locator("a.practice-link")
+        assert link.count() == 1
+        assert link.get_attribute("href") == f"/{live.tokens['staff']}/practice"
+        assert link.inner_text() == "Partitella"
+        # after the matches
+        assert page.locator(".card ~ a.practice-link").count() == 1
+        page.goto(f"{live.base}/{live.tokens['family']}")
+        page.wait_for_selector(".card")
+        assert page.locator("a.practice-link").count() == 0
+        assert "practice" not in page.content()
+    assert page.errors == []
+
+
+def test_the_practice_screen_scores_a_game_and_starts_the_next(tmp_path, page):
+    with serve(tmp_path) as live:
+        open_practice(page, live)
+        assert page.inner_text(".practice-head b") == "Partitella"
+        assert page.locator(".practice-head span").inner_text() == ""
+        assert page.inner_text(".start.them") == "Batte Gli altri"
+        page.click(".start.us")
+        page.wait_for_selector(".team.us:not([disabled])")
+        page.click(".team.us")
+        wait_score(page, "1 – 0")
+        assert "fa" in page.locator(".practice-head span").inner_text()
+        assert page.locator(".notice").count() == 0  # no window banner
+        page.click(".bar button:has-text('⋯')")
+        assert page.locator(".chart-link").count() == 0
+        assert page.locator(".extras button:has-text('Fine')").count() == 0
+        assert page.locator(".menu .newgame").count() == 1
+        page.click(".menu header button")
+        assert page.locator(".newgame.prominent").count() == 0
+        assert page.get_attribute(".practice-head .back", "href") == (
+            f"/{live.tokens['staff']}"
+        )
+        for _ in range(24):
+            practice_post(live, set=1, type="point", team="us")
+        page.wait_for_selector(".newgame.prominent", timeout=15000)
+        assert practice_state(live)["match"]["status"] == "over"
+        answers = iter([False, True])
+        page.on(
+            "dialog",
+            lambda dialog: dialog.accept() if next(answers) else dialog.dismiss(),
+        )
+        page.click(".newgame.prominent")  # refused: nothing changes
+        assert practice_state(live)["sets"][0]["closed"]
+        page.click(".newgame.prominent")
+        page.wait_for_selector(".start")
+        assert practice_state(live)["sets"] == []
+        assert state_of(live)["sets"] == []  # the matches are not touched
     assert page.errors == []

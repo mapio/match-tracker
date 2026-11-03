@@ -821,3 +821,36 @@ td .pill {
     font-size: 0.8rem;
   }
 }
+
+/* the practice game: a title line, and the way to the next game */
+.practice-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.practice-head .back {
+  font-size: 2rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.practice-head span {
+  margin-left: auto;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.staff .newgame.prominent {
+  font-size: 1.4rem;
+  padding: 18px 8px;
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #111;
+}
+
+.practice-link {
+  display: block;
+  margin-top: 1rem;
+  text-align: center;
+}

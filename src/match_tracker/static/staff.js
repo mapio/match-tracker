@@ -20,6 +20,8 @@ import {
 } from "./common.js";
 
 const BASE = `/${matchNumber}`;
+// the team's one practice game, addressed with a word where a match number goes
+const PRACTICE = matchNumber === "practice";
 const POLL_SECONDS = 10;
 const COUNTED = ["point", "timeout"];
 
@@ -32,7 +34,7 @@ export function start(initial, root) {
   let notice = null;
   let timer = null;
   const us = () => state.team.name;
-  const them = () => state.match.opponent;
+  const them = () => (PRACTICE ? t("practice_them") : state.match.opponent);
   const viewed = () => state.sets.find((s) => s.set === view) ?? null;
   const lastCounted = () =>
     [...state.events]
@@ -198,6 +200,40 @@ export function start(initial, root) {
     );
   }
 
+  // The practice game is wiped whenever staff want the next one, after asking.
+  function newGame(prominent = false) {
+    const reset = () => {
+      if (!confirm(t("practice_new_confirm"))) return;
+      menu = false;
+      view = 1;
+      send(`${BASE}/reset`, { method: "POST" });
+    };
+    return h(
+      "button",
+      {
+        class: prominent ? "newgame prominent" : "newgame",
+        disabled: busy,
+        onclick: reset,
+      },
+      t("practice_new"),
+    );
+  }
+
+  // how long ago the game began, from its set's start; nothing before one
+  function age() {
+    const first = state.sets[0];
+    if (!first) return null;
+    const minutes = Math.max(
+      0,
+      Math.floor((Date.now() - Date.parse(first.started_at)) / 60000),
+    );
+    const text =
+      minutes < 60
+        ? `${minutes} min`
+        : `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")} min`;
+    return t("practice_age", text);
+  }
+
   // only on a demo team, which the server lets be wiped; to go with the demo
   function resetButton() {
     const reset = () => {
@@ -231,13 +267,15 @@ export function start(initial, root) {
       ),
       ...[
         banner(),
-        h(
-          "a",
-          { class: "chart-link", href: `/${token}/${matchNumber}/chart` },
-          `${t("chart")} ›`,
-        ),
+        !PRACTICE &&
+          h(
+            "a",
+            { class: "chart-link", href: `/${token}/${matchNumber}/chart` },
+            `${t("chart")} ›`,
+          ),
         h("div", { class: "extras" }, ...extras),
-        state.team.demo && resetButton(),
+        PRACTICE && newGame(),
+        !PRACTICE && state.team.demo && resetButton(),
         h("ul", {}, ...events.map(eventRow)),
         footLinks(),
       ].filter(Boolean),
@@ -255,7 +293,7 @@ export function start(initial, root) {
     const used = set?.timeouts ?? { us: 0, them: 0 };
     const limit = state.rules.timeouts_per_set;
     const won = state.sets_won;
-    setTitle(`${us()} – ${them()}`);
+    setTitle(PRACTICE ? t("practice") : `${us()} – ${them()}`);
 
     const teamRow = (side, name) =>
       h(
@@ -380,19 +418,36 @@ export function start(initial, root) {
             },
             t("close_set"),
           ),
-      h(
-        "button",
-        {
-          disabled: !editable || busy || !lastSet || over,
-          onclick: () =>
-            extra(() => add({ type: "match_end", set: lastSet.set })),
-        },
-        t("end_match"),
-      ),
-    ];
+      // the set is the whole practice game: it ends when the set does
+      !PRACTICE &&
+        h(
+          "button",
+          {
+            disabled: !editable || busy || !lastSet || over,
+            onclick: () =>
+              extra(() => add({ type: "match_end", set: lastSet.set })),
+          },
+          t("end_match"),
+        ),
+    ].filter(Boolean);
+
+    const head = PRACTICE
+      ? h(
+          "div",
+          { class: "practice-head" },
+          h(
+            "a",
+            { class: "back", href: `/${token}`, title: t("all_matches") },
+            "‹",
+          ),
+          h("b", {}, t("practice")),
+          h("span", {}, age()),
+        )
+      : null;
 
     show(
       root,
+      head,
       banner(),
       h(
         "div",
@@ -404,6 +459,7 @@ export function start(initial, root) {
       teamRow("us", us()),
       ...middle,
       teamRow("them", them()),
+      PRACTICE && closed ? newGame(true) : null,
       bar,
       menu ? menuView() : null,
     );

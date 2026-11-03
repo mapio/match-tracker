@@ -96,7 +96,23 @@ async function refresh() {
       setTitle(list.team.name);
       ready = true;
     }
-    show(root, h("h1", {}, list.team.name), layout(list.matches), footLinks());
+    show(
+      root,
+      h("h1", {}, list.team.name),
+      layout(list.matches),
+      // the practice game is the staff's alone, and no family is told of it
+      list.role === "staff" &&
+        h(
+          "a",
+          {
+            class: "practice-link",
+            role: "button",
+            href: `/${token}/practice`,
+          },
+          t("practice"),
+        ),
+      footLinks(),
+    );
   } catch (error) {
     if (!ready) show(root, h("p", { class: "notice" }, error.message));
   }
