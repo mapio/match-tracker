@@ -331,9 +331,10 @@ a staff token can reset. Families never see it.
   `timeouts_per_set`. The set closes when it is won, which ends the game.
 - It has no window: it is always editable, so `opens_at` and `locks_at` are
   `null` and `editable` is `true`. The `match` object has `n: null`, `date`,
-  `opponent` and `location` `null`, and `practice: true`; `status` is `upcoming`
-  until the first event, `live`, then `over` when the set is closed. The age of
-  the game is the `started_at` of its set, which the page shows.
+  `opponent` and `location` `null`, and `practice: true` (a key that a match's
+  object does not have); `status` is `upcoming` until the first event, `live`,
+  then `over` when the set is closed. The age of the game is the `started_at` of
+  its set, which the page shows.
 - `reset` deletes the log at any time, whatever the team, and starts the next
   game from nothing. Nothing resets it by itself: a game left over stays, with
   its age, until a staffer resets it.
