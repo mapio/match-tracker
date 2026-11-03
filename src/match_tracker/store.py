@@ -57,6 +57,8 @@ class Store:
         self._logs = {}
 
     def _journal(self, team_id, n, who, op, new, next_id):
+        if n == "practice":  # a game to throw away: nothing to rebuild
+            return
         old = [event_to_json(e) for e in self.get(team_id, n).events]
         record = journal.match_record(self._now(), who, op, old, new, next_id)
         journal.append(journal.path_of(self._dir, team_id, n), record)

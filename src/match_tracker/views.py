@@ -3,13 +3,15 @@
 from dataclasses import asdict
 from urllib.parse import urlsplit
 
-from .rules import Window, derive
+from .rules import NO_WINDOW, Window, derive
 from .store import event_to_json, format_time
 
 WHATSAPP_HOSTS = ("wa.me", "chat.whatsapp.com", "api.whatsapp.com")
 
 
 def window_of(team, match):
+    if match.n is None:  # the practice game has no window
+        return NO_WINDOW
     return Window.for_match(match.date, team.timezone)
 
 
@@ -88,18 +90,20 @@ def match_state(team, match, role, log, now):
     """The state of one match: the same for both roles but for what is noted."""
     window = window_of(team, match)
     state = derive(match.rules, window, log.events, now)
+    practice = match.n is None  # no number, no calendar entry, no window
     out = {
         "role": role,
         "team": _team(team),
         "match": {
             "n": match.n,
-            "date": match.date.isoformat(timespec="minutes"),
+            "date": None if practice else match.date.isoformat(timespec="minutes"),
             "opponent": match.opponent,
-            "location": _location(match.location),
+            "location": None if practice else _location(match.location),
             "status": state.status,
-            "opens_at": format_time(window.opens_at),
-            "locks_at": format_time(window.locks_at),
+            "opens_at": None if practice else format_time(window.opens_at),
+            "locks_at": None if practice else format_time(window.locks_at),
             "editable": state.editable,
+            **({"practice": True} if practice else {}),
         },
         "rules": asdict(match.rules),
         "sets": [_set(s) for s in state.sets],

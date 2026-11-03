@@ -77,6 +77,14 @@ class Window:
             raise RuleError("locked", f"locked since {self.locks_at.isoformat()}")
 
 
+#: the window of the practice game: always open, never locked
+NO_WINDOW = Window(
+    datetime.min.replace(tzinfo=UTC),
+    datetime.max.replace(tzinfo=UTC),
+    datetime.min.replace(tzinfo=UTC),
+)
+
+
 @dataclass(frozen=True)
 class SetState:
     set: int

@@ -29,7 +29,7 @@ from . import journal, oplog, rules, views
 from .limiter import Limiter
 from .rules import Draft, Event, RuleError
 from .store import Log, Store
-from .teams import ConfigError, Teams, read_salt
+from .teams import PRACTICE, ConfigError, Teams, read_salt
 
 STATIC = Path(__file__).parent / "static"
 log = logging.getLogger("match-tracker")
@@ -251,8 +251,18 @@ def create_app(
             unknown_token()
         return found
 
+    def key_of(match):
+        """What names a match's log and its streams: the number, or `practice`."""
+        return PRACTICE if match.n is None else match.n
+
     def match_of(token, n):
+        """The match `n` of the token's team, or its practice game for the word
+        `practice`, which only a staff token reaches; else `404`."""
         team, role = team_of(token)
+        if n == PRACTICE:
+            if role != "staff":
+                raise ApiError(404, "not_found", "not found")
+            return team, role, team.practice()
         match = team.match(int(n)) if n.isascii() and n.isdigit() else None
         if match is None:
             raise ApiError(404, "not_found", "not found")
@@ -424,17 +434,19 @@ def create_app(
     @app.get("/api/{token}/{n}")
     async def api_match(token: str, n: str):
         team, role, match = match_of(token, n)
-        record = store.get(team.id, match.n)
+        record = store.get(team.id, key_of(match))
         return views.match_state(team, match, role, record, now())
 
     @app.get("/api/{token}/{n}/stream")
     async def api_stream(token: str, n: str):
         team, role, match = match_of(token, n)
-        key = (team.id, match.n)
+        key = (team.id, key_of(match))
 
         def current():
             team_now = teams.team(team.id)
-            match_now = team_now.match(match.n)
+            match_now = (
+                team_now.practice() if match.n is None else team_now.match(match.n)
+            )
             if match_now is None:
                 return None
             record = store.get(*key)
@@ -446,7 +458,7 @@ def create_app(
             sent = None
             queue = asyncio.Queue(maxsize=1)
             watchers.setdefault(key, set()).add(queue)
-            log.info("%s/%d watcher joined (%d)", *key, len(watchers[key]))
+            log.info("%s/%s watcher joined (%d)", *key, len(watchers[key]))
             try:
                 while (state := current()) is not None:
                     if state != sent:
@@ -458,7 +470,7 @@ def create_app(
                         await asyncio.wait_for(queue.get(), keepalive)
             finally:
                 watchers[key].discard(queue)
-                log.info("%s/%d watcher left (%d)", *key, len(watchers[key]))
+                log.info("%s/%s watcher left (%d)", *key, len(watchers[key]))
 
         return StreamingResponse(
             events(),
@@ -479,16 +491,17 @@ def create_app(
 
     def change(team, match, kind, what, build):
         """Apply `build(log, window, at) -> Log` to a match's log and save it."""
-        record = store.get(team.id, match.n)
+        key = key_of(match)
+        record = store.get(team.id, key)
         at = now()
         try:
             new = build(record, views.window_of(team, match), at)
         except RuleError as error:
-            log.info("%s/%d refused %s", team.id, match.n, error.code)
+            log.info("%s/%s refused %s", team.id, key, error.code)
             raise
-        store.put(team.id, match.n, new, who="staff", op=kind)
-        log.info("%s/%d %s", team.id, match.n, what)  # only staff can score
-        notify(team.id, match.n)
+        store.put(team.id, key, new, who="staff", op=kind)
+        log.info("%s/%s %s", team.id, key, what)  # only staff can score
+        notify(team.id, key)
         return views.match_state(team, match, "staff", new, at)
 
     @app.post("/api/{token}/{n}/events", status_code=201)
@@ -547,14 +560,13 @@ def create_app(
     @app.post("/api/{token}/{n}/reset")
     async def api_reset(token: str, n: str):
         team, match = staff_match(token, n)
-        if not team.demo:
+        key = key_of(match)
+        if not (team.demo or match.n is None):  # the practice game, whatever the team
             raise ApiError(404, "not_found", "not found")
-        store.reset(team.id, match.n, who="staff")
-        log.info("%s/%d reset", team.id, match.n)
-        notify(team.id, match.n)
-        return views.match_state(
-            team, match, "staff", store.get(team.id, match.n), now()
-        )
+        store.reset(team.id, key, who="staff")
+        log.info("%s/%s reset", team.id, key)
+        notify(team.id, key)
+        return views.match_state(team, match, "staff", store.get(team.id, key), now())
 
     @app.get("/")
     async def page_landing():
@@ -607,7 +619,8 @@ def create_app(
 
     @app.get("/{token}/{n}/chart")
     async def page_chart(token: str, n: str):
-        match_of(token, n)
+        if match_of(token, n)[2].n is None:  # the practice game has no chart
+            raise ApiError(404, "not_found", "not found")
         return page("chart.html")
 
     @app.get("/{token}/{n}")

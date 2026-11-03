@@ -26,6 +26,7 @@ TOKEN_LENGTH = 6
 COACH_TOKEN_LENGTH = 10
 ADMIN_TOKEN_LENGTH = 14
 ROLES = ("family", "staff")
+PRACTICE = "practice"  # where a match number goes, for the practice game
 ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]*")
 NAME_KEYS = ("roster", "show_scorers")  # refused: the app holds no name of a person
 RULE_KEYS = ("best_of", "points", "last_set_points", "win_by", "timeouts_per_set")
@@ -199,6 +200,18 @@ class Team:
     def match(self, n):
         return next((m for m in self.matches if m.n == n), None)
 
+    def practice(self):
+        """The practice game: one set to 25 won by 2, the team's timeouts. It is
+        no entry of the team file, so it has no number, date, opponent or place."""
+        rules = Rules(
+            best_of=1,
+            points=25,
+            last_set_points=25,
+            win_by=2,
+            timeouts_per_set=self.rules.timeouts_per_set,
+        )
+        return Match(None, None, None, None, rules)
+
 
 def _parse_match(raw, path, team_rules):
     _no_names(raw, path, ("players",))
@@ -298,10 +311,10 @@ def _check_against_logs(team, data_dir):
     for log_path in sorted((data_dir / team.id).glob("*.json")):
         try:
             events = json.loads(log_path.read_text(encoding="utf-8"))["events"]
-            n = int(log_path.stem)
+            n = None if log_path.stem == PRACTICE else int(log_path.stem)
         except (OSError, ValueError, KeyError, TypeError):
             raise ConfigError(f"{log_path}: not a readable event log") from None
-        if team.match(n) is None:
+        if n is not None and team.match(n) is None:
             raise ConfigError(f"match {n} has a log and cannot be dropped")
         for event in events:
             if "player" in event:
