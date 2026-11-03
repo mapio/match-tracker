@@ -309,6 +309,35 @@ Staff token only:
 Undo is a `DELETE` of the latest point or timeout of the viewed set, chosen by
 the client from `events`.
 
+### Practice game
+
+A team has one **practice game**, for the short games played at the end of a
+training: a single set, outside the calendar, that staff scores and anyone with
+a staff token can reset. Families never see it.
+
+- It is addressed with the word `practice` where a match number goes, under a
+  staff token only: `GET /api/<tok>/practice` (state),
+  `GET /api/<tok>/practice/stream`, `POST /api/<tok>/practice/events`, `PATCH`
+  and `DELETE /api/<tok>/practice/events/<id>`,
+  `POST /api/<tok>/practice/sets/<s>/reopen` and
+  `POST /api/<tok>/practice/reset`, each as for a match, and the page
+  `/<tok>/practice`. With any other token, a family's included, all of them are
+  the usual `404`, and the practice game is in no match list, season, chart or
+  stream of a match.
+- It is not in the team file and has no number. Its log is
+  `data/<team>/practice.json`, shaped like a match's, and it has no journal.
+- Its rules are fixed, the team's own except `best_of` 1, `points` and
+  `last_set_points` 25, and `win_by` 2. Timeouts are the team's
+  `timeouts_per_set`. The set closes when it is won, which ends the game.
+- It has no window: it is always editable, so `opens_at` and `locks_at` are
+  `null` and `editable` is `true`. The `match` object has `n: null`, `date`,
+  `opponent` and `location` `null`, and `practice: true`; `status` is `upcoming`
+  until the first event, `live`, then `over` when the set is closed. The age of
+  the game is the `started_at` of its set, which the page shows.
+- `reset` deletes the log at any time, whatever the team, and starts the next
+  game from nothing. Nothing resets it by itself: a game left over stays, with
+  its age, until a staffer resets it.
+
 The same paths with another kind of token (see *Tokens*): with the team's coach
 token, `<tok>` below (see *Editing*):
 
